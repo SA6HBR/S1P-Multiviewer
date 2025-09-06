@@ -73,7 +73,7 @@ Adjust the percentage value to show only the results exceeding that threshold.
 
 ## Useful Links
 
-* [Download latest (0.01) SerialProxy.exe](https://github.com/SA6HBR/SerialProxy/releases/download/0.01/SerialProxy.exe)
+* [Download latest S1P-Multiviewer](https://github.com/SA6HBR/S1P-Multiviewer/releases/download/1.0.0/S1P-Multiviewer.zip)
 * [My measurements for SD68](https://github.com/SA6HBR/SerialProxy/releases/download/0.01/SerialProxy.exe)
 * [NanoVNA-App from DiSlord](https://github.com/DiSlord/NanoVNA-App/blob/main/Win32/Release/NanoVNA-App.exe)
 * [SD86 antenna from Sirio](https://www.sirioantenne.it/en/products/vhf/sd-68-sd-78)
@@ -91,6 +91,7 @@ This project includes third-party libraries:
 
 - [ScottPlot](https://scottplot.net/) - MIT License  
   See [third_party_licenses/ScottPlot.LICENSE.txt](./third_party_licenses/ScottPlot.LICENSE.txt)
+
 
 
 
