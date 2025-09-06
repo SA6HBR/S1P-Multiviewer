@@ -39,9 +39,10 @@ Click Save settings.
 
 ![](https://github.com/SA6HBR/S1P-Multiviewer/blob/main/image/Explore.png)  
 Click directly on the filenames or adjust the sliders for Parameter 1 and Parameter 2 to view graphs generated from the values in the files or the averages between them.
-You can save the value as a favorite to easily return to an interesting setting.
-Adjust Max VSWR to optimize the graph display.
-Chart Type: Conductance, GammaMagnitude, ImpedanceMagnitude, LinMag, LogMag, PhaseDegrees, PhaseRadians, Reactance, ReflectedPower, Resistance, ReturnLoss, Susceptance and VSWR.  
+You can save the value as a favorite to easily return to an interesting setting.  
+Adjust chart min-max and frequencies min-max, to optimize the chart display.  
+Chart Type: Conductance, GammaMagnitude, ImpedanceMagnitude, LinMag, LogMag, PhaseDegrees, PhaseRadians, Reactance, ReflectedPower, Resistance, ReturnLoss, Susceptance and VSWR. 
+
 ---
 
 ### HEATMAP:
@@ -90,6 +91,7 @@ This project includes third-party libraries:
 
 - [ScottPlot](https://scottplot.net/) - MIT License  
   See [third_party_licenses/ScottPlot.LICENSE.txt](./third_party_licenses/ScottPlot.LICENSE.txt)
+
 
 
 
