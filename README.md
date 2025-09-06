@@ -1,2 +1,95 @@
-# S1P-Multiviewer
-Multiviewer for s1p-files
+# S1P Multiviewer
+
+### Info:  
+
+When I measured my new gamma-matched antenna from Sirio and adjusted L2 and L3, I realized how difficult it was to find the best settings for the antenna. I could use the settings recommended by the manufacturer, but are those really the best for the frequencies I want to use the antenna for?
+With this program, you can virtually adjust L2 and L3 to view the Smith chart and VSWR based on the measurements you've performed, as well as the averages between them.
+To test the program, you can use my measurement data for the SD68.
+
+---
+
+### START:  
+
+![](https://github.com/SA6HBR/SerialProxy/blob/main/image/SerialProxy.png)  
+Create a matrix of the min and max values of L2 and L3.  
+Mark every 20mm of L2 and every 10mm of L3.  
+Set the antenna for these values and measure using, for example, the NanoVNA app.  
+Save s1p files for each measurement with the filename format:  
+project_L2 setting_L3 setting.s1p  
+
+If you are measuring an antenna from Sirio named SD68, you can create files according to this template:  
+sd68_384_34.s1p  
+  
+---
+
+### LOAD:
+
+![](https://github.com/SA6HBR/SerialProxy/blob/main/image/SerialProxy.png)  
+Select one of the .s1p files from the folder where you saved all the measurements.
+All files in the folder should belong to the same project name.
+Depending on the number of files and your computer’s performance, this may take a moment.
+
+First time, enter the minimum and maximum values for both Parameter 1 and Parameter 2, as well as size of "tuning element" in Diff.
+I use L2 and L3 as name for Parameter 1 and Parameter 2.
+Click Save settings.
+
+---
+
+### EXPLORE:
+
+![](https://github.com/SA6HBR/SerialProxy/blob/main/image/SerialProxy.png)  
+Click directly on the filenames or adjust the sliders for Parameter 1 and Parameter 2 to view graphs generated from the values in the files or the averages between them.
+You can save the value as a favorite to easily return to an interesting setting.
+Adjust Max VSWR to optimize the graph display.
+
+---
+
+### HEATMAP:
+
+![](https://github.com/SA6HBR/SerialProxy/blob/main/image/SerialProxy.png)  
+Here you can see darker dots representing lower VSWR for the average/maximum of the selected frequencies.
+Enter the frequencies of interest (in MHz), separated by commas (,) and finish by clicking Load map.
+Adjust the Max VSWR setting to improve the graph visualization.
+
+---
+
+### CENTER FREQUENCY:
+
+![](https://github.com/SA6HBR/SerialProxy/blob/main/image/SerialProxy.png)  
+This graph displays the frequencies that most commonly exhibit the lowest VSWR across all values of Parameter 1 and Parameter 2.
+Click Load map.
+Adjust Max VSWR to optimize the graph display.
+
+---
+
+### BANDWIDTH:  
+
+![](https://github.com/SA6HBR/SerialProxy/blob/main/image/SerialProxy.png)  
+Select the maximum acceptable VSWR to determine the widest usable bandwidth and finish by clicking Load map.
+Adjust the percentage value to show only the results exceeding that threshold.
+
+---
+
+## Useful Links
+
+* [Download latest (0.01) SerialProxy.exe](https://github.com/SA6HBR/SerialProxy/releases/download/0.01/SerialProxy.exe)
+* [My measurements for SD68](https://github.com/SA6HBR/SerialProxy/releases/download/0.01/SerialProxy.exe)
+* [My measurements for SDFM - L1=500, 110-140 MHz](https://github.com/SA6HBR/SerialProxy/releases/download/0.01/SerialProxy.exe)
+* [My measurements for SDFM - L1=500, 110-140 MHz](https://github.com/SA6HBR/SerialProxy/releases/download/0.01/SerialProxy.exe)
+* [NanoVNA-App from DiSlord](https://github.com/DiSlord/NanoVNA-App/blob/main/Win32/Release/NanoVNA-App.exe)
+* [Manual for SD68 antenna from Sirio](https://www.sirioantenne.it/en/products/vhf/sd-68-sd-78)
+* [Manual for SDFM antenna from Sirio](https://www.sirioantenne.it/en/products/vhf/sd-68-sd-78)
+
+---
+
+
+## License
+
+GNU General Public License v3.0, see [LICENSE](https://github.com/SA6HBR/SerialProxy/blob/main/LICENSE) for details.
+
+### Third-party libraries
+
+This project includes third-party libraries:
+
+- [ScottPlot](https://scottplot.net/) - MIT License  
+  See [third_party_licenses/ScottPlot.LICENSE.txt](./third_party_licenses/ScottPlot.LICENSE.txt)
