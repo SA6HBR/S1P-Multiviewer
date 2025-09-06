@@ -10,7 +10,7 @@ To test the program, you can use my measurement data for the SD68.
 
 ### START:  
 
-![](https://github.com/SA6HBR/SerialProxy/blob/main/image/SerialProxy.png)  
+![](https://github.com/SA6HBR/S1P-Multiviewer/blob/main/image/NanoVNA-app.png)  
 Create a matrix of the min and max values of L2 and L3.  
 Mark every 20mm of L2 and every 10mm of L3.  
 Set the antenna for these values and measure using, for example, the NanoVNA app.  
@@ -24,7 +24,7 @@ sd68_384_34.s1p
 
 ### LOAD:
 
-![](https://github.com/SA6HBR/SerialProxy/blob/main/image/SerialProxy.png)  
+![](https://github.com/SA6HBR/S1P-Multiviewer/blob/main/image/Load.png)  
 Select one of the .s1p files from the folder where you saved all the measurements.
 All files in the folder should belong to the same project name.
 Depending on the number of files and your computer’s performance, this may take a moment.
@@ -37,7 +37,7 @@ Click Save settings.
 
 ### EXPLORE:
 
-![](https://github.com/SA6HBR/SerialProxy/blob/main/image/SerialProxy.png)  
+![](https://github.com/SA6HBR/S1P-Multiviewer/blob/main/image/Explore.png)  
 Click directly on the filenames or adjust the sliders for Parameter 1 and Parameter 2 to view graphs generated from the values in the files or the averages between them.
 You can save the value as a favorite to easily return to an interesting setting.
 Adjust Max VSWR to optimize the graph display.
@@ -46,7 +46,7 @@ Adjust Max VSWR to optimize the graph display.
 
 ### HEATMAP:
 
-![](https://github.com/SA6HBR/SerialProxy/blob/main/image/SerialProxy.png)  
+![](https://github.com/SA6HBR/S1P-Multiviewer/blob/main/image/Heatmap.png)  
 Here you can see darker dots representing lower VSWR for the average/maximum of the selected frequencies.
 Enter the frequencies of interest (in MHz), separated by commas (,) and finish by clicking Load map.
 Adjust the Max VSWR setting to improve the graph visualization.
@@ -55,7 +55,7 @@ Adjust the Max VSWR setting to improve the graph visualization.
 
 ### CENTER FREQUENCY:
 
-![](https://github.com/SA6HBR/SerialProxy/blob/main/image/SerialProxy.png)  
+![](https://github.com/SA6HBR/S1P-Multiviewer/blob/main/image/CenterFrequency.png)  
 This graph displays the frequencies that most commonly exhibit the lowest VSWR across all values of Parameter 1 and Parameter 2.
 Click Load map.
 Adjust Max VSWR to optimize the graph display.
@@ -64,7 +64,7 @@ Adjust Max VSWR to optimize the graph display.
 
 ### BANDWIDTH:  
 
-![](https://github.com/SA6HBR/SerialProxy/blob/main/image/SerialProxy.png)  
+![](https://github.com/SA6HBR/S1P-Multiviewer/blob/main/image/Bandwith.png)  
 Select the maximum acceptable VSWR to determine the widest usable bandwidth and finish by clicking Load map.
 Adjust the percentage value to show only the results exceeding that threshold.
 
@@ -74,18 +74,15 @@ Adjust the percentage value to show only the results exceeding that threshold.
 
 * [Download latest (0.01) SerialProxy.exe](https://github.com/SA6HBR/SerialProxy/releases/download/0.01/SerialProxy.exe)
 * [My measurements for SD68](https://github.com/SA6HBR/SerialProxy/releases/download/0.01/SerialProxy.exe)
-* [My measurements for SDFM - L1=500, 110-140 MHz](https://github.com/SA6HBR/SerialProxy/releases/download/0.01/SerialProxy.exe)
-* [My measurements for SDFM - L1=500, 110-140 MHz](https://github.com/SA6HBR/SerialProxy/releases/download/0.01/SerialProxy.exe)
 * [NanoVNA-App from DiSlord](https://github.com/DiSlord/NanoVNA-App/blob/main/Win32/Release/NanoVNA-App.exe)
-* [Manual for SD68 antenna from Sirio](https://www.sirioantenne.it/en/products/vhf/sd-68-sd-78)
-* [Manual for SDFM antenna from Sirio](https://www.sirioantenne.it/en/products/vhf/sd-68-sd-78)
+* [SD86 antenna from Sirio](https://www.sirioantenne.it/en/products/vhf/sd-68-sd-78)
 
 ---
 
 
 ## License
 
-GNU General Public License v3.0, see [LICENSE](https://github.com/SA6HBR/SerialProxy/blob/main/LICENSE) for details.
+GNU General Public License v3.0, see [LICENSE](https://github.com/SA6HBR/S1P-Multiviewer/blob/main/LICENSE) for details.
 
 ### Third-party libraries
 
@@ -93,3 +90,4 @@ This project includes third-party libraries:
 
 - [ScottPlot](https://scottplot.net/) - MIT License  
   See [third_party_licenses/ScottPlot.LICENSE.txt](./third_party_licenses/ScottPlot.LICENSE.txt)
+
