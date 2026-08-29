@@ -1,5 +1,8 @@
 # S1P Multiviewer
 
+### Update:
+Upgraded for filters, also viewer for S2P files
+
 ### Info:  
 When I measured my new gamma-matched antenna from Sirio and adjusted L2 and L3, I realized how difficult it was to find the best settings for the antenna. I could use the settings recommended by the manufacturer, but are those really the best for the frequencies I want to use the antenna for?
 With this program, you can virtually adjust L2 and L3 to view the Smith chart and VSWR based on the measurements you've performed, as well as the averages between them.
