@@ -2,7 +2,6 @@
 using System.Globalization;
 using System.Numerics;
 using System.Text.RegularExpressions;
-using System.Xml.Linq;
 
 namespace S1P_Multiviewer
 {
@@ -16,7 +15,7 @@ namespace S1P_Multiviewer
             ResetSmithChart();
 
             formsPlot2.Plot.XLabel("Frequency (MHz)");
-            formsPlot2.Plot.YLabel("VSWR");
+            formsPlot2.Plot.YLabel("VSWR S11");
             formsPlot2.Plot.Axes.SetLimitsY(1, (int)numericUpDown1.Value);
             formsPlot2.Plot.Axes.SetLimitsX(50, 900);
             formsPlot2.Refresh();
@@ -30,52 +29,9 @@ namespace S1P_Multiviewer
         public void PlotSmithChart()
         {
 
-            List<SParameter> sParams1 = new List<SParameter> { };
-            List<SParameter> sParams2 = new List<SParameter> { };
-            List<SParameter> sParams3 = new List<SParameter> { };
-            List<SParameter> sParams4 = new List<SParameter> { };
+            getFilenames(Parameter.Param1Value, Parameter.Param2Value, Parameter.Param3Value, Parameter.Param4Value);
 
-            getFilenames(Parameter.Param1Value, Parameter.Param2Value);
-
-            if (Parameter.FileName1diff < 10000)
-            {
-                loadFiles(Parameter.FileName1);
-                sParams1 = S1PReader.S1PFiles[Array.IndexOf(Parameter.Files, Parameter.FileName1)];
-            }
-            if (Parameter.FileName2diff < 10000)
-            {
-                loadFiles(Parameter.FileName2);
-                sParams2 = S1PReader.S1PFiles[Array.IndexOf(Parameter.Files, Parameter.FileName2)];
-            }
-            if (Parameter.FileName3diff < 10000)
-            {
-                loadFiles(Parameter.FileName3);
-                sParams3 = S1PReader.S1PFiles[Array.IndexOf(Parameter.Files, Parameter.FileName3)];
-            }
-            if (Parameter.FileName4diff < 10000)
-            {
-                loadFiles(Parameter.FileName4);
-                sParams4 = S1PReader.S1PFiles[Array.IndexOf(Parameter.Files, Parameter.FileName4)];
-            }
-
-            double weight1 = 1 / Math.Pow(Parameter.FileName1diff, 2);
-            double weight2 = 1 / Math.Pow(Parameter.FileName2diff, 2);
-            double weight3 = 1 / Math.Pow(Parameter.FileName3diff, 2);
-            double weight4 = 1 / Math.Pow(Parameter.FileName4diff, 2);
-
-            int fileStatus1 = 1;
-            int fileStatus2 = 1;
-            int fileStatus3 = 1;
-            int fileStatus4 = 1;
-
-            if (sParams1.Count == 0) { fileStatus1 = 0; }
-            if (sParams2.Count == 0) { fileStatus2 = 0; }
-            if (sParams3.Count == 0) { fileStatus3 = 0; }
-            if (sParams4.Count == 0) { fileStatus4 = 0; }
-
-            if (Parameter.FileName1 == Parameter.FileName2) { fileStatus2 = 0; }
-            if (Parameter.FileName1 == Parameter.FileName3 || Parameter.FileName2 == Parameter.FileName3) { fileStatus3 = 0; }
-            if (Parameter.FileName1 == Parameter.FileName4 || Parameter.FileName2 == Parameter.FileName4 || Parameter.FileName3 == Parameter.FileName4) { fileStatus4 = 0; }
+            var weighted = S1PReader.GetWeightedSParams();
 
             formsPlot1.Plot.Clear();
             var smith = formsPlot1.Plot.Add.SmithChartAxis();
@@ -83,31 +39,12 @@ namespace S1P_Multiviewer
             double MinFrequencyHz = (double)numericUpDown11.Value * 1000000;
             double MaxFrequencyHz = (double)numericUpDown10.Value * 1000000;
 
-            for (int i = 0; i < sParams1.Count(); i++)
+            for (int i = 0; i < weighted.PointCount; i++)
             {
 
-                if (MinFrequencyHz <= sParams1[i].FrequencyHz && sParams1[i].FrequencyHz <= MaxFrequencyHz)
+                if (MinFrequencyHz <= weighted.Params[0][i].FrequencyHz && weighted.Params[0][i].FrequencyHz <= MaxFrequencyHz)
                 {
-
-                    Complex complexIn1 = 0;
-                    Complex complexIn2 = 0;
-                    Complex complexIn3 = 0;
-                    Complex complexIn4 = 0;
-
-                    if (sParams1.Count() > 0) { complexIn1 = new Complex(sParams1[i].Real, sParams1[i].Imag); }
-                    if (sParams2.Count() > 0) { complexIn2 = new Complex(sParams2[i].Real, sParams2[i].Imag); }
-                    if (sParams3.Count() > 0) { complexIn3 = new Complex(sParams3[i].Real, sParams3[i].Imag); }
-                    if (sParams4.Count() > 0) { complexIn4 = new Complex(sParams4[i].Real, sParams4[i].Imag); }
-
-                    if (Parameter.FileName1diff > 0)
-                    {
-                        if (fileStatus1 > 0) { complexIn1 = complexIn1 * weight1; }
-                        if (fileStatus2 > 0) { complexIn1 += complexIn2 * weight2; }
-                        if (fileStatus3 > 0) { complexIn1 += complexIn3 * weight3; }
-                        if (fileStatus4 > 0) { complexIn1 += complexIn4 * weight4; }
-
-                        complexIn1 = complexIn1 / (weight1 * fileStatus1 + weight2 * fileStatus2 + weight3 * fileStatus3 + weight4 * fileStatus4);
-                    }
+                    Complex complexIn1 = weighted.BlendComplex(i);
 
                     Coordinates location = smith.GetCoordinates(S11Converter.Resistance_R(complexIn1.Real, complexIn1.Imaginary, 1), S11Converter.Reactance_X(complexIn1.Real, complexIn1.Imaginary, 1));
                     formsPlot1.Plot.Add.Marker(location, MarkerShape.FilledCircle, size: 5, Colors.Red);
@@ -122,110 +59,139 @@ namespace S1P_Multiviewer
             PlotSmithChart();
             PlotExploreMultiChart();
         }
+        // Metrics available on both S11 and S21, sharing the same underlying
+        // magnitude/phase math (just applied to a different port pair). Some
+        // pairs use the same base name on both sides (e.g. "LogMag"), others
+        // use different conventional names for the same formula (Return Loss
+        // on S11 is called Insertion Loss on S21) - so each row carries its
+        // own S11/S21/combined combobox labels rather than assuming a shared
+        // base name. Centralizing this here avoids repeating the same
+        // S11-vs-S21-vs-both branching seven times over.
+        private static readonly (string S11Label, string S21Label, string ComboLabel, Func<double, double, double> S11Func, Func<double, double, double> S21Func, string YLabel)[] DualPortMetrics =
+        {
+            ("Magnitude S11", "Magnitude S21", "Magnitude S11 + S21", S11Converter.GammaMagnitude, S21Converter.Magnitude, "Magnitude"),
+            ("LinMag S11", "LinMag S21", "LinMag S11 + S21", S11Converter.LinMag, S21Converter.LinMag, "LinMag"),
+            ("LogMag S11", "LogMag S21", "LogMag S11 + S21", S11Converter.LogMag, S21Converter.InsertionGain_dB, "LogMag (dB)"),
+            // PhaseDegrees/PhaseRadians/ReflectedPower on the S11 side, and
+            // TransmittedPower on the S21 side, all have a 3rd optional
+            // parameter (refImp / incidentPower) - a method group with an
+            // optional parameter can't convert directly to a 2-arg Func (the
+            // default isn't applied in delegate conversions), so these are
+            // wrapped in a lambda that calls them normally instead.
+            ("PhaseDegrees S11", "PhaseDegrees S21", "PhaseDegrees S11 + S21", (real, imag) => S11Converter.PhaseDegrees(real, imag), S21Converter.PhaseDegrees, "Phase (deg)"),
+            ("PhaseRadians S11", "PhaseRadians S21", "PhaseRadians S11 + S21", (real, imag) => S11Converter.PhaseRadians(real, imag), S21Converter.PhaseRadians, "Phase (rad)"),
+            ("ReflectedPower S11", "TransmittedPower S21", "ReflectedPower S11 + TransmittedPower S21", (real, imag) => S11Converter.ReflectedPower(real, imag), (real, imag) => S21Converter.TransmittedPower(real, imag), "Power fraction"),
+            ("ReturnLoss_RL S11", "InsertionLoss S21", "ReturnLoss_RL S11 + InsertionLoss S21", S11Converter.ReturnLoss_RL, S21Converter.InsertionLoss_dB, "dB"),
+            // Experimental - see S21Converter.VSWR's doc comment. VSWR on S21
+            // isn't a real physical VSWR, just the same formula applied to
+            // |S21| out of curiosity.
+            ("VSWR S11", "VSWR S21", "VSWR S11 + S21", S11Converter.VSWR, S21Converter.VSWR, "VSWR"),
+        };
+
         public void PlotExploreMultiChart()
         {
 
-            List<SParameter> sParams1 = new List<SParameter> { };
-            List<SParameter> sParams2 = new List<SParameter> { };
-            List<SParameter> sParams3 = new List<SParameter> { };
-            List<SParameter> sParams4 = new List<SParameter> { };
+            getFilenames(Parameter.Param1Value, Parameter.Param2Value, Parameter.Param3Value, Parameter.Param4Value);
 
-            getFilenames(Parameter.Param1Value, Parameter.Param2Value);
+            var weighted = S1PReader.GetWeightedSParams();
 
-
-            if (Parameter.FileName1diff < 10000)
-            {
-                loadFiles(Parameter.FileName1);
-                sParams1 = S1PReader.S1PFiles[Array.IndexOf(Parameter.Files, Parameter.FileName1)];
-            }
-            if (Parameter.FileName2diff < 10000)
-            {
-                loadFiles(Parameter.FileName2);
-                sParams2 = S1PReader.S1PFiles[Array.IndexOf(Parameter.Files, Parameter.FileName2)];
-            }
-            if (Parameter.FileName3diff < 10000)
-            {
-                loadFiles(Parameter.FileName3);
-                sParams3 = S1PReader.S1PFiles[Array.IndexOf(Parameter.Files, Parameter.FileName3)];
-            }
-            if (Parameter.FileName4diff < 10000)
-            {
-                loadFiles(Parameter.FileName4);
-                sParams4 = S1PReader.S1PFiles[Array.IndexOf(Parameter.Files, Parameter.FileName4)];
-            }
-
-            var frequencies = sParams1.Select(d => (d.FrequencyHz / 1000000)).ToArray();
-            double[] plotValues = new double[frequencies.Length];
-
-
-            double weight1 = 1 / Math.Pow(Parameter.FileName1diff, 2);
-            double weight2 = 1 / Math.Pow(Parameter.FileName2diff, 2);
-            double weight3 = 1 / Math.Pow(Parameter.FileName3diff, 2);
-            double weight4 = 1 / Math.Pow(Parameter.FileName4diff, 2);
-
-            int fileStatus1 = 1;
-            int fileStatus2 = 1;
-            int fileStatus3 = 1;
-            int fileStatus4 = 1;
-
-            if (sParams1.Count == 0) { fileStatus1 = 0; }
-            if (sParams2.Count == 0) { fileStatus2 = 0; }
-            if (sParams3.Count == 0) { fileStatus3 = 0; }
-            if (sParams4.Count == 0) { fileStatus4 = 0; }
-
-            if (Parameter.FileName1 == Parameter.FileName2) { fileStatus2 = 0; }
-            if (Parameter.FileName1 == Parameter.FileName3 || Parameter.FileName2 == Parameter.FileName3) { fileStatus3 = 0; }
-            if (Parameter.FileName1 == Parameter.FileName4 || Parameter.FileName2 == Parameter.FileName4 || Parameter.FileName3 == Parameter.FileName4) { fileStatus4 = 0; }
+            var frequencies = weighted.PointCount > 0 ? weighted.Params[0].Select(d => (d.FrequencyHz / 1000000)).ToArray() : Array.Empty<double>();
 
             formsPlot1.Plot.Clear();
             var smith = formsPlot1.Plot.Add.SmithChartAxis();
 
-
-            //foreach (var s in sParams)
-            for (int i = 0; i < sParams1.Count(); i++)
-            {
-
-
-                Complex complexIn1 = 0;
-                Complex complexIn2 = 0;
-                Complex complexIn3 = 0;
-                Complex complexIn4 = 0;
-
-                if (sParams1.Count() > 0) { complexIn1 = new Complex(sParams1[i].Real, sParams1[i].Imag); }
-                if (sParams2.Count() > 0) { complexIn2 = new Complex(sParams2[i].Real, sParams2[i].Imag); }
-                if (sParams3.Count() > 0) { complexIn3 = new Complex(sParams3[i].Real, sParams3[i].Imag); }
-                if (sParams4.Count() > 0) { complexIn4 = new Complex(sParams4[i].Real, sParams4[i].Imag); }
-
-                if (Parameter.FileName1diff > 0)
-                {
-                    if (fileStatus1 > 0) { complexIn1 = complexIn1 * weight1; }
-                    if (fileStatus2 > 0) { complexIn1 += complexIn2 * weight2; }
-                    if (fileStatus3 > 0) { complexIn1 += complexIn3 * weight3; }
-                    if (fileStatus4 > 0) { complexIn1 += complexIn4 * weight4; }
-
-                    complexIn1 = complexIn1 / (weight1 * fileStatus1 + weight2 * fileStatus2 + weight3 * fileStatus3 + weight4 * fileStatus4);
-                }
-
-                if (comboBox1.SelectedItem == "Conductance_G") { plotValues[i] = S11Converter.Conductance_G(complexIn1.Real, complexIn1.Imaginary); }
-                else if (comboBox1.SelectedItem == "GammaMagnitude") { plotValues[i] = S11Converter.GammaMagnitude(complexIn1.Real, complexIn1.Imaginary); }
-                else if (comboBox1.SelectedItem == "ImpedanceMagnitude") { plotValues[i] = S11Converter.ImpedanceMagnitude(complexIn1.Real, complexIn1.Imaginary); }
-                else if (comboBox1.SelectedItem == "LinMag") { plotValues[i] = S11Converter.LinMag(complexIn1.Real, complexIn1.Imaginary); }
-                else if (comboBox1.SelectedItem == "LogMag") { plotValues[i] = S11Converter.LogMag(complexIn1.Real, complexIn1.Imaginary); }
-                else if (comboBox1.SelectedItem == "PhaseDegrees") { plotValues[i] = S11Converter.PhaseDegrees(complexIn1.Real, complexIn1.Imaginary); }
-                else if (comboBox1.SelectedItem == "PhaseRadians") { plotValues[i] = S11Converter.PhaseRadians(complexIn1.Real, complexIn1.Imaginary); }
-                else if (comboBox1.SelectedItem == "Reactance_X") { plotValues[i] = S11Converter.Reactance_X(complexIn1.Real, complexIn1.Imaginary); }
-                else if (comboBox1.SelectedItem == "ReflectedPower") { plotValues[i] = S11Converter.ReflectedPower(complexIn1.Real, complexIn1.Imaginary); }
-                else if (comboBox1.SelectedItem == "Resistance_R") { plotValues[i] = S11Converter.Resistance_R(complexIn1.Real, complexIn1.Imaginary); }
-                else if (comboBox1.SelectedItem == "ReturnLoss_RL") { plotValues[i] = S11Converter.ReturnLoss_RL(complexIn1.Real, complexIn1.Imaginary); }
-                else if (comboBox1.SelectedItem == "Susceptance_B") { plotValues[i] = S11Converter.Susceptance_B(complexIn1.Real, complexIn1.Imaginary); }
-                else { plotValues[i] = S11Converter.VSWR(complexIn1.Real, complexIn1.Imaginary); }
-
-            }
+            string selected = comboBox1.SelectedItem?.ToString() ?? "";
 
             formsPlot2.Plot.Clear();
-            formsPlot2.Plot.Add.Scatter(frequencies, plotValues);
+
+            var comboMetric = DualPortMetrics.FirstOrDefault(m => m.ComboLabel == selected);
+            var s21Metric = DualPortMetrics.FirstOrDefault(m => m.S21Label == selected);
+            var s11Metric = DualPortMetrics.FirstOrDefault(m => m.S11Label == selected);
+
+            if (comboMetric.ComboLabel != null)
+            {
+                // Both traces on the same chart: S11 blue (as it always has been),
+                // S21 red (new).
+                double[] s11Values = new double[frequencies.Length];
+                double[] s21Values = new double[frequencies.Length];
+
+                for (int i = 0; i < weighted.PointCount; i++)
+                {
+                    Complex s11 = weighted.BlendComplex(i);
+                    Complex s21 = weighted.BlendComplexS21(i);
+
+                    s11Values[i] = comboMetric.S11Func(s11.Real, s11.Imaginary);
+                    s21Values[i] = comboMetric.S21Func(s21.Real, s21.Imaginary);
+                }
+
+                var s11Scatter = formsPlot2.Plot.Add.Scatter(frequencies, s11Values);
+                s11Scatter.Color = Colors.Blue;
+                s11Scatter.LegendText = "S11";
+
+                var s21Scatter = formsPlot2.Plot.Add.Scatter(frequencies, s21Values);
+                s21Scatter.Color = Colors.Red;
+                s21Scatter.LegendText = "S21";
+
+                formsPlot2.Plot.YLabel(comboMetric.YLabel);
+                formsPlot2.Plot.ShowLegend();
+            }
+            else if (s21Metric.S21Label != null)
+            {
+                double[] plotValues = new double[frequencies.Length];
+
+                for (int i = 0; i < weighted.PointCount; i++)
+                {
+                    Complex s21 = weighted.BlendComplexS21(i);
+                    plotValues[i] = s21Metric.S21Func(s21.Real, s21.Imaginary);
+                }
+
+                var scatter = formsPlot2.Plot.Add.Scatter(frequencies, plotValues);
+                scatter.Color = Colors.Blue;
+
+                formsPlot2.Plot.YLabel(selected);
+            }
+            else if (s11Metric.S11Label != null)
+            {
+                double[] plotValues = new double[frequencies.Length];
+
+                for (int i = 0; i < weighted.PointCount; i++)
+                {
+                    Complex complexIn1 = weighted.BlendComplex(i);
+                    plotValues[i] = s11Metric.S11Func(complexIn1.Real, complexIn1.Imaginary);
+                }
+
+                var scatter = formsPlot2.Plot.Add.Scatter(frequencies, plotValues);
+                scatter.Color = Colors.Blue;
+
+                formsPlot2.Plot.YLabel(selected);
+            }
+            else
+            {
+                // S11-only metrics that have no S21/combined counterpart, since
+                // they rely on the one-port impedance transform (meaningless
+                // for a transmission parameter): Conductance_G, ImpedanceMagnitude,
+                // Reactance_X, Resistance_R, Susceptance_B.
+                double[] plotValues = new double[frequencies.Length];
+
+                for (int i = 0; i < weighted.PointCount; i++)
+                {
+                    Complex complexIn1 = weighted.BlendComplex(i);
+
+                    if (selected == "Conductance_G S11") { plotValues[i] = S11Converter.Conductance_G(complexIn1.Real, complexIn1.Imaginary); }
+                    else if (selected == "ImpedanceMagnitude S11") { plotValues[i] = S11Converter.ImpedanceMagnitude(complexIn1.Real, complexIn1.Imaginary); }
+                    else if (selected == "Reactance_X S11") { plotValues[i] = S11Converter.Reactance_X(complexIn1.Real, complexIn1.Imaginary); }
+                    else if (selected == "Resistance_R S11") { plotValues[i] = S11Converter.Resistance_R(complexIn1.Real, complexIn1.Imaginary); }
+                    else { plotValues[i] = S11Converter.Susceptance_B(complexIn1.Real, complexIn1.Imaginary); }
+
+                }
+
+                var scatter = formsPlot2.Plot.Add.Scatter(frequencies, plotValues);
+                scatter.Color = Colors.Blue; // S11 (or whichever single trace) drawn as before.
+
+                formsPlot2.Plot.YLabel(selected);
+            }
+
             formsPlot2.Plot.XLabel("Frequency (MHz)");
-            formsPlot2.Plot.YLabel(comboBox1.SelectedItem.ToString());
             formsPlot2.Plot.Axes.AutoScale();
             formsPlot2.Plot.Axes.SetLimitsY((double)numericUpDown9.Value, (double)numericUpDown1.Value);
             formsPlot2.Plot.Axes.SetLimitsX((double)numericUpDown11.Value, (double)numericUpDown10.Value);
@@ -237,7 +203,7 @@ namespace S1P_Multiviewer
         {
             if (Parameter.SetExpectedFile)
             {
-                Parameter.Param1Value = trackBar1.Value;
+                Parameter.Param1Value = trackBarExploreParam1.Value;
                 Parameter.SetExpectedFile = false;
                 SetExpectedFile();
                 PlotExploreChart();
@@ -249,7 +215,31 @@ namespace S1P_Multiviewer
         {
             if (Parameter.SetExpectedFile)
             {
-                Parameter.Param2Value = trackBar2.Value;
+                Parameter.Param2Value = trackBarExploreParam2.Value;
+                Parameter.SetExpectedFile = false;
+                SetExpectedFile();
+                PlotExploreChart();
+                Parameter.SetExpectedFile = true;
+                listBox1.ClearSelected();
+            }
+        }
+        private void trackBar3_ValueChanged(object sender, EventArgs e)
+        {
+            if (Parameter.SetExpectedFile)
+            {
+                Parameter.Param3Value = trackBarExploreParam3.Value;
+                Parameter.SetExpectedFile = false;
+                SetExpectedFile();
+                PlotExploreChart();
+                Parameter.SetExpectedFile = true;
+                listBox1.ClearSelected();
+            }
+        }
+        private void trackBar4_ValueChanged(object sender, EventArgs e)
+        {
+            if (Parameter.SetExpectedFile)
+            {
+                Parameter.Param4Value = trackBarExploreParam4.Value;
                 Parameter.SetExpectedFile = false;
                 SetExpectedFile();
                 PlotExploreChart();
@@ -259,82 +249,113 @@ namespace S1P_Multiviewer
         }
         public void SetExpectedFile()
         {
-            int ParamTotMin = Parameter.Min - Parameter.Diff;
-            int ParamTotMax = Parameter.Max - Parameter.Diff;
             int Param1 = Parameter.Param1Value; // trackBar1.Value;
             int Param2 = Parameter.Param2Value; // trackBar2.Value;
-            int Param2Min = Parameter.Param2Min;
-            int Param2Max = Parameter.Param2Max;
+            int Param3 = Parameter.Param3Value;
+            int Param4 = Parameter.Param4Value;
 
+            //var (Param2Min, Param2Max) = Parameter.GetParamRange(2, Param1, Param2, Param3, Param4);
+            //if (Param2 < Param2Min) { Param2 = Param2Min; }
+            //if (Param2 > Param2Max) { Param2 = Param2Max; }
 
-            if (Param1 < ParamTotMin)
-            {
-                Param2Min = Math.Max(ParamTotMin - Param1, Param2Min);
-                if (Param2 < Param2Min)
-                {
-                    Param2 = Param2Min;
-                }
-            }
+            //var (Param3Min, Param3Max) = Parameter.GetParamRange(3, Param1, Param2, Param3, Param4);
+            //if (Param3 < Param3Min) { Param3 = Param3Min; }
+            //if (Param3 > Param3Max) { Param3 = Param3Max; }
 
-            if ((Param1 + Param2Max) > ParamTotMax)
-            {
-                Param2Max = Param2Max - ((Param1 + Param2Max) - ParamTotMax);
-                if (Param2 > Param2Max)
-                {
-                    Param2 = Param2Max;
-                }
-            }
+            //var (Param4Min, Param4Max) = Parameter.GetParamRange(4, Param1, Param2, Param3, Param4);
+            //if (Param4 < Param4Min) { Param4 = Param4Min; }
+            //if (Param4 > Param4Max) { Param4 = Param4Max; }
 
             Parameter.Param1Value = Param1;
             Parameter.Param2Value = Param2;
+            Parameter.Param3Value = Param3;
+            Parameter.Param4Value = Param4;
 
-            trackBar1.Value = Param1;
+            trackBarExploreParam1.Value = Param1;
 
-            trackBar2.Value = Math.Max(Math.Min(Param2, trackBar2.Maximum), trackBar2.Minimum);
-            trackBar2.Minimum = Param2Min;
-            trackBar2.Maximum = Param2Max;
-            trackBar2.Value = Param2;
+            trackBarExploreParam2.Value = Math.Max(Math.Min(Param2, trackBarExploreParam2.Maximum), trackBarExploreParam2.Minimum);
+            //trackBarExploreParam2.Minimum = Param2Min;
+            //trackBarExploreParam2.Maximum = Param2Max;
+            trackBarExploreParam2.Value = Param2;
 
-            label4.Text = Param2Min.ToString();
-            label8.Text = Param2Max.ToString();
+            //labelExploreMinParam2.Text = Param2Min.ToString();
+            //labelExploreMaxParam2.Text = Param2Max.ToString();
 
-            numericUpDown5.Value = Param1;
-            numericUpDown6.Value = Param2;
+            trackBarExploreParam3.Value = Math.Max(Math.Min(Param3, trackBarExploreParam3.Maximum), trackBarExploreParam3.Minimum);
+            //trackBarExploreParam3.Minimum = Param3Min;
+            //trackBarExploreParam3.Maximum = Param3Max;
+            trackBarExploreParam3.Value = Param3;
+
+            //labelExploreMinParam3.Text = Param3Min.ToString();
+            //labelExploreMaxParam3.Text = Param3Max.ToString();
+
+            trackBarExploreParam4.Value = Math.Max(Math.Min(Param4, trackBarExploreParam4.Maximum), trackBarExploreParam4.Minimum);
+            //trackBarExploreParam4.Minimum = Param4Min;
+            //trackBarExploreParam4.Maximum = Param4Max;
+            trackBarExploreParam4.Value = Param4;
+
+            //labelExploreMinParam4.Text = Param4Min.ToString();
+            //labelExploreMaxParam4.Text = Param4Max.ToString();
+
+            numericUpDownExploreParam1.Value = Param1;
+            numericUpDownExploreParam2.Value = Param2;
+            numericUpDownExploreParam3.Value = Param3;
+            numericUpDownExploreParam4.Value = Param4;
         }
         public void SetLabel()
         {
-            label1.Text = Parameter.Param1Name;
-            label4.Text = Parameter.Param1Value.ToString();
-            trackBar1.Minimum = Parameter.Param1Min;
-            trackBar1.Maximum = Parameter.Param1Max;
-            trackBar1.Value = Parameter.Param1Value;
 
-            label5.Text = Parameter.Param2Name;
-            label8.Text = Parameter.Param2Value.ToString();
-            trackBar2.Minimum = Parameter.Param2Min;
-            trackBar2.Maximum = Parameter.Param2Max;
-            trackBar2.Value = Parameter.Param2Value;
-            numericUpDown5.Value = Parameter.Param1Value;
-            numericUpDown6.Value = Parameter.Param2Value;
+            // Param 1
+            textBoxLoadParamName1.Text = Parameter.Param1Name;
+            labelExploreParam1.Text = Parameter.Param1Name;
+            labelExploreMinParam1.Text = Parameter.Param1Min.ToString();
+            labelExploreMaxParam1.Text = Parameter.Param1Max.ToString();
+            trackBarExploreParam1.Minimum = Parameter.Param1Min;
+            trackBarExploreParam1.Maximum = Parameter.Param1Max;
+            trackBarExploreParam1.Value = Parameter.Param1Value;
+            numericUpDownExploreParam1.Value = Parameter.Param1Value;
 
-            textBox1.Text = Parameter.Min.ToString();
-            textBox7.Text = Parameter.Max.ToString();
-            textBox8.Text = Parameter.Diff.ToString();
-            textBox9.Text = Parameter.refImp.ToString();
-            textBox2.Text = Parameter.Projectname;
-            textBox5.Text = Parameter.Param1Name;
-            textBox6.Text = Parameter.Param2Name;
+            // Param 2
+            textBoxLoadParamName2.Text = Parameter.Param2Name;
+            labelExploreParam2.Text = Parameter.Param2Name;
+            labelExploreMinParam2.Text = Parameter.Param2Min.ToString();
+            labelExploreMaxParam2.Text = Parameter.Param2Max.ToString();
+            trackBarExploreParam2.Minimum = Parameter.Param2Min;
+            trackBarExploreParam2.Maximum = Parameter.Param2Max;
+            trackBarExploreParam2.Value = Parameter.Param2Value;
+            numericUpDownExploreParam2.Value = Parameter.Param2Value;
 
-            label16.Text = Parameter.Param1Min.ToString();
-            label17.Text = Parameter.Param1Max.ToString();
+            // Param 3
+            textBoxLoadParamName3.Text = Parameter.Param3Name;
+            labelExploreParam3.Text = Parameter.Param3Name;
+            labelExploreMinParam3.Text = Parameter.Param3Min.ToString();
+            labelExploreMaxParam3.Text = Parameter.Param3Max.ToString();
+            trackBarExploreParam3.Minimum = Parameter.Param3Min;
+            trackBarExploreParam3.Maximum = Parameter.Param3Max;
+            trackBarExploreParam3.Value = Parameter.Param3Value;
+            numericUpDownExploreParam3.Value = Parameter.Param3Value;
+
+            // Param 4
+            textBoxLoadParamName4.Text = Parameter.Param4Name;
+            labelExploreParam4.Text = Parameter.Param4Name;
+            labelExploreMinParam4.Text = Parameter.Param4Min.ToString();
+            labelExploreMaxParam4.Text = Parameter.Param4Max.ToString();
+            trackBarExploreParam4.Minimum = Parameter.Param4Min;
+            trackBarExploreParam4.Maximum = Parameter.Param4Max;
+            trackBarExploreParam4.Value = Parameter.Param4Value;
+            numericUpDownExploreParam4.Value = Parameter.Param4Value;
+
+
+            textBoxLoadImpedance.Text = Parameter.refImp.ToString();
+            textBoxLoadProjectname.Text = Parameter.Projectname;
 
             numericUpDown11.Minimum = (decimal)Math.Round(Parameter.MinFrequencyHz / 1000000, 0);
-            numericUpDown11.Value = (decimal)Math.Round(Parameter.MinFrequencyHz / 1000000, 0);
             numericUpDown11.Maximum = (decimal)Math.Round(Parameter.MaxFrequencyHz / 1000000, 0);
+            numericUpDown11.Value = (decimal)Math.Round(Parameter.MinFrequencyHz / 1000000, 0);
 
             numericUpDown10.Minimum = (decimal)Math.Round(Parameter.MinFrequencyHz / 1000000, 0);
-            numericUpDown10.Value = (decimal)Math.Round(Parameter.MaxFrequencyHz / 1000000, 0);
             numericUpDown10.Maximum = (decimal)Math.Round(Parameter.MaxFrequencyHz / 1000000, 0);
+            numericUpDown10.Value = (decimal)Math.Round(Parameter.MaxFrequencyHz / 1000000, 0);
 
         }
         public void SelectFile()
@@ -342,69 +363,74 @@ namespace S1P_Multiviewer
             using (OpenFileDialog dialog = new OpenFileDialog())
             {
                 dialog.Title = "Select a file";
-                dialog.Filter = "S1P-files (*.s1p)|*.s1p|All files (*.*)|*.*";
+                dialog.Filter = "S1P/S2P-files (*.s1p;*.s2p)|*.s1p;*.s2p|S1P-files (*.s1p)|*.s1p|S2P-files (*.s2p)|*.s2p|All files (*.*)|*.*";
 
                 if (dialog.ShowDialog() == DialogResult.OK)
                 {
                     string fullPath = dialog.FileName.ToLower();
                     string folderPath = Path.GetDirectoryName(fullPath).ToLower() ?? "";
-                    string fileName = Path.GetFileNameWithoutExtension(fullPath).ToLower() ?? "";
-                    string[] fileNamePart = fileName.Split('_');
 
-                    if (fileNamePart.Length == 3)
+                    if (!S1PFileName.TryParse(fullPath, out string projectName, out int selectedParam1, out int selectedParam2, out int selectedParam3, out int selectedParam4))
                     {
-                        Parameter.Param1Value = int.Parse(fileNamePart[1]);
-                        Parameter.Param2Value = int.Parse(fileNamePart[2]);
-                        Parameter.Projectname = fileNamePart[0].ToLower();
-                        Parameter.Path = folderPath;
-
-                        string[] files = Directory.GetFiles(folderPath, "*.s1p");
-                        Parameter.Files = files.Select(f => f.ToLower()).ToArray();
-
-                        //Parameter.Files = Directory.GetFiles(folderPath, "*.s1p");
-
-                        Parameter.Param1Min = 100000;
-                        Parameter.Param2Min = 100000;
-                        Parameter.Param1Max = 0;
-                        Parameter.Param2Max = 0;
-
-                        foreach (string file in Parameter.Files)
-                        {
-                            //listBox2.Items.Add(Path.GetFileNameWithoutExtension(file));
-                            listBox2.Items.Add(Path.GetFileName(file));
-
-                            string[] fileNamePart2 = Path.GetFileNameWithoutExtension(file).Split('_');
-
-                            if (int.Parse(fileNamePart2[1]) < Parameter.Param1Min)
-                            {
-                                Parameter.Param1Min = int.Parse(fileNamePart2[1]);
-                            }
-
-                            if (int.Parse(fileNamePart2[1]) > Parameter.Param1Max)
-                            {
-                                Parameter.Param1Max = int.Parse(fileNamePart2[1]);
-                            }
-
-                            if (int.Parse(fileNamePart2[2]) < Parameter.Param2Min)
-                            {
-                                Parameter.Param2Min = int.Parse(fileNamePart2[2]);
-                            }
-
-                            if (int.Parse(fileNamePart2[2]) > Parameter.Param2Max)
-                            {
-                                Parameter.Param2Max = int.Parse(fileNamePart2[2]);
-                            }
-
-
-                        }
-                        Parameter.Min = Parameter.Param1Min + Parameter.Param2Min;
-                        Parameter.Max = Parameter.Param1Max + Parameter.Param2Max;
-
-                        XMLfileHandler.ReadFile(Parameter.Path + "\\" + Parameter.Projectname + "_param.xml", listBox1);
-
-                        S1PReader.S1PFiles = new List<SParameter>[Parameter.Files.Length];
-
+                        MessageBox.Show("Filnamnet matchar inte \"Namn[_Param1[_Param2[_Param3[_Param4]]]].s1p/.s2p\"");
+                        return;
                     }
+
+                    Parameter.Param1Value = selectedParam1;
+                    Parameter.Param2Value = selectedParam2;
+                    Parameter.Param3Value = selectedParam3;
+                    Parameter.Param4Value = selectedParam4;
+                    Parameter.Projectname = projectName;
+                    Parameter.Path = folderPath;
+
+                    string[] filesInFolder = Directory.GetFiles(folderPath, "*.s1p")
+                        .Concat(Directory.GetFiles(folderPath, "*.s2p"))
+                        .ToArray();
+
+                    Parameter.Param1Min = 100000;
+                    Parameter.Param2Min = 100000;
+                    Parameter.Param3Min = 100000;
+                    Parameter.Param4Min = 100000;
+                    Parameter.Param1Max = 0;
+                    Parameter.Param2Max = 0;
+                    Parameter.Param3Max = 0;
+                    Parameter.Param4Max = 0;
+
+                    var matchedFiles = new List<string>();
+                    var matchedFileParams = new List<(int, int, int, int)>();
+
+                    foreach (string file in filesInFolder)
+                    {
+                        string lowerFile = file.ToLower();
+
+                        // Skip files that don't follow "Name[_Param1[_Param2[_Param3[_Param4]]]].s1p",
+                        // and files belonging to a different project - only files with the
+                        // same ParamNamn as the one picked are loaded, even if others sit in
+                        // the same folder.
+                        if (!S1PFileName.TryParse(lowerFile, out string fileProjectName, out int filePart1, out int filePart2, out int filePart3, out int filePart4))
+                            continue;
+                        if (!fileProjectName.Equals(Parameter.Projectname, StringComparison.Ordinal))
+                            continue;
+
+                        matchedFiles.Add(lowerFile);
+                        matchedFileParams.Add((filePart1, filePart2, filePart3, filePart4));
+
+                        if (filePart1 < Parameter.Param1Min) { Parameter.Param1Min = filePart1; }
+                        if (filePart1 > Parameter.Param1Max) { Parameter.Param1Max = filePart1; }
+                        if (filePart2 < Parameter.Param2Min) { Parameter.Param2Min = filePart2; }
+                        if (filePart2 > Parameter.Param2Max) { Parameter.Param2Max = filePart2; }
+                        if (filePart3 < Parameter.Param3Min) { Parameter.Param3Min = filePart3; }
+                        if (filePart3 > Parameter.Param3Max) { Parameter.Param3Max = filePart3; }
+                        if (filePart4 < Parameter.Param4Min) { Parameter.Param4Min = filePart4; }
+                        if (filePart4 > Parameter.Param4Max) { Parameter.Param4Max = filePart4; }
+                    }
+
+                    Parameter.Files = matchedFiles.ToArray();
+                    Parameter.FileParams = matchedFileParams.ToArray();
+
+                    XMLfileHandler.ReadFile(Parameter.Path + "\\" + Parameter.Projectname + "_param.xml", listBox1);
+
+                    S1PReader.S1PFiles = new List<SParameter>[Parameter.Files.Length];
                 }
             }
         }
@@ -413,160 +439,221 @@ namespace S1P_Multiviewer
             Parameter.SetExpectedFile = false;
             SelectFile();
 
-            getFilenames(Parameter.Param1Value, Parameter.Param2Value);
-            loadFiles(Parameter.FileName1);
+            getFilenames(Parameter.Param1Value, Parameter.Param2Value, Parameter.Param3Value, Parameter.Param4Value);
 
-            Parameter.MinFrequencyHz = S1PReader.S1PFiles[Array.IndexOf(Parameter.Files, Parameter.FileName1)].Select(d => d.FrequencyHz).Min();
-            Parameter.MaxFrequencyHz = S1PReader.S1PFiles[Array.IndexOf(Parameter.Files, Parameter.FileName1)].Select(d => d.FrequencyHz).Max();
+            string markedFile = Parameter.CornerFiles.Count > 0 ? Parameter.CornerFiles[0] : "";
+            loadFiles(markedFile); // Load marked file
+
+            if (markedFile != "")
+            {
+                var markedData = S1PReader.S1PFiles[Array.IndexOf(Parameter.Files, markedFile)];
+                Parameter.MinFrequencyHz = markedData.Select(d => d.FrequencyHz).Min();
+                Parameter.MaxFrequencyHz = markedData.Select(d => d.FrequencyHz).Max();
+            }
 
             SetLabel();
+            SetExpectedFile();
             Parameter.SetExpectedFile = true;
 
             PlotExploreChart();
-            loadFiles();
-            MessageBox.Show($"In folder there is {Parameter.Files.Length} s1p-files");
+            loadFiles(); // load all files
+            MessageBox.Show($"In folder there is {Parameter.Files.Length} s1p/s2p-files");
         }
-        public void getFilenames(int part1, int part2)
+        public void getFilenames(int part1, int part2, int part3, int part4)
         {
+            Parameter.CornerFiles.Clear();
+            Parameter.CornerDiffs.Clear();
 
-            Parameter.FileName1 = "";
-            Parameter.FileName2 = "";
-            Parameter.FileName3 = "";
-            Parameter.FileName4 = "";
-
-            int diffMax = 10000;
-            Parameter.FileName1diff = diffMax;
-            Parameter.FileName2diff = diffMax;
-            Parameter.FileName3diff = diffMax;
-            Parameter.FileName4diff = diffMax;
-
-            string[] fileName = { "", "", "", "", "" };
-
-            int[] fileNameDiff = { diffMax, diffMax, diffMax, diffMax, diffMax };
-
-            fileName[1] = Parameter.Path + "\\" + Parameter.Projectname + "_" + part1 + "_" + part2 + ".s1p";
-            int fileArrayNo = Array.IndexOf(Parameter.Files, fileName[1]);
-
-            double weightTot = 0;
-            double[] weight = { 0, 0, 0, 0, 0 };
-
-            int fileNo = 1;
-
-            if (fileArrayNo >= 0)
+            int exactIdx = -1;
+            for (int i = 0; i < Parameter.Files.Length; i++)
             {
-                fileNameDiff[1] = 0;
-                Parameter.FileName1 = fileName[1];
-                Parameter.FileName1diff = fileNameDiff[1];
+                var p = Parameter.FileParams[i];
+                if (p.Param1 == part1 && p.Param2 == part2 && p.Param3 == part3 && p.Param4 == part4)
+                {
+                    exactIdx = i;
+                    break;
+                }
+            }
 
+            if (exactIdx >= 0)
+            {
+                Parameter.CornerFiles.Add(Parameter.Files[exactIdx]);
+                Parameter.CornerDiffs.Add(0);
             }
             else
             {
-                foreach (string file in Parameter.Files)
+                const int cornerCount = 16;
+                string[] cornerFile = new string[cornerCount];
+                int[] cornerDiff = new int[cornerCount];
+                for (int c = 0; c < cornerCount; c++) { cornerDiff[c] = int.MaxValue; }
+
+                for (int i = 0; i < Parameter.Files.Length; i++)
                 {
-                    string[] fileNamePart2 = Path.GetFileNameWithoutExtension(file).Split('_');
+                    var p = Parameter.FileParams[i];
+                    int diffPart = (int)Math.Abs(Math.Sqrt(
+                        Math.Pow(10 * (part1 - p.Param1), 2) +
+                        Math.Pow(10 * (part2 - p.Param2), 2) +
+                        Math.Pow(10 * (part3 - p.Param3), 2) +
+                        Math.Pow(10 * (part4 - p.Param4), 2)));
 
-                    if (fileNamePart2.Length == 3)
+                    for (int c = 0; c < cornerCount; c++)
                     {
-                        int checkPart1 = int.Parse(fileNamePart2[1]);
-                        int checkPart2 = int.Parse(fileNamePart2[2]);
-                        int diffPart = (int)Math.Abs(Math.Sqrt(Math.Pow(part1 - checkPart1, 2) + Math.Pow(part2 - checkPart2, 2)));
+                        bool ok =
+                            ((c & 1) == 0 ? part1 >= p.Param1 : part1 <= p.Param1) &&
+                            ((c & 2) == 0 ? part2 >= p.Param2 : part2 <= p.Param2) &&
+                            ((c & 4) == 0 ? part3 >= p.Param3 : part3 <= p.Param3) &&
+                            ((c & 8) == 0 ? part4 >= p.Param4 : part4 <= p.Param4);
 
-                        if (part1 >= checkPart1 && part2 >= checkPart2 && fileNameDiff[1] > diffPart)
+                        if (ok && diffPart < cornerDiff[c])
                         {
-                            fileNameDiff[1] = diffPart;
-                            fileName[1] = file;
-                        }
-
-                        if (part1 >= checkPart1 && part2 <= checkPart2 && fileNameDiff[2] > diffPart)
-                        {
-                            fileNameDiff[2] = diffPart;
-                            fileName[2] = file;
-                        }
-
-                        if (part1 <= checkPart1 && part2 >= checkPart2 && fileNameDiff[3] > diffPart)
-                        {
-                            fileNameDiff[3] = diffPart;
-                            fileName[3] = file;
-                        }
-
-                        if (part1 <= checkPart1 && part2 <= checkPart2 && fileNameDiff[4] > diffPart)
-                        {
-                            fileNameDiff[4] = diffPart;
-                            fileName[4] = file;
+                            cornerDiff[c] = diffPart;
+                            cornerFile[c] = Parameter.Files[i];
                         }
                     }
                 }
 
-                for (int i = 1; i < 5; i++)
+                // Samla unika kandidater för att kunna beräkna totalvikt innan vi filtrerar bort de små
+                var tempFiles = new List<string>();
+                var tempDiffs = new List<int>();
+                var seen = new HashSet<string>();
+                for (int c = 0; c < cornerCount; c++)
                 {
-                    if (fileNameDiff[i] < diffMax)
+                    if (cornerDiff[c] != int.MaxValue && seen.Add(cornerFile[c]))
                     {
-                        bool okFile = false;
-                        if (fileNo == 1)
-                        {
-                            Parameter.FileName1 = fileName[i];
-                            Parameter.FileName1diff = fileNameDiff[i];
-                            okFile = true;
-                        }
-                        else if (fileNo == 2 && Parameter.FileName1 != fileName[i])
-                        {
-                            Parameter.FileName2 = fileName[i];
-                            Parameter.FileName2diff = fileNameDiff[i];
-                            okFile = true;
-                        }
-                        else if (fileNo == 3 && Parameter.FileName1 != fileName[i] && Parameter.FileName2 != fileName[i])
-                        {
-                            Parameter.FileName3 = fileName[i];
-                            Parameter.FileName3diff = fileNameDiff[i];
-                            okFile = true;
-                        }
-                        else if (fileNo == 4 && Parameter.FileName1 != fileName[i] && Parameter.FileName2 != fileName[i] && Parameter.FileName3 != fileName[i])
-                        {
-                            Parameter.FileName4 = fileName[i];
-                            Parameter.FileName4diff = fileNameDiff[i];
-                            okFile = true;
-                        }
-
-                        if (okFile)
-                        {
-                            weight[i] = 1 / Math.Pow(fileNameDiff[i], 2);
-                            weightTot += weight[i];
-                            fileNo += 1;
-                        }
+                        tempFiles.Add(cornerFile[c]);
+                        tempDiffs.Add(cornerDiff[c]);
                     }
                 }
 
-            }
-            textBox3.Clear();
+                if (tempFiles.Count > 0)
+                {
+                    double weightTot = tempDiffs.Sum(d => 1.0 / Math.Pow(d, 2));
 
-            if (fileNameDiff[1] == 0)
-            {
-                textBox3.AppendText(" 100.0%  " + Path.GetFileName(fileName[1]));
+                    for (int i = 0; i < tempFiles.Count; i++)
+                    {
+                        // Lägg bara till filer vars viktbidrag är större än 1%
+                        double pct = 100 * (1.0 / Math.Pow(tempDiffs[i], 2)) / weightTot;
+                        if (pct > 0.1)
+                        {
+                            Parameter.CornerFiles.Add(tempFiles[i]);
+                            Parameter.CornerDiffs.Add(tempDiffs[i]);
+                        }
+                    }
+                }
             }
-            else
+
+            textBoxExplore.Clear();
+
+            if (Parameter.CornerFiles.Count == 1 && Parameter.CornerDiffs[0] == 0)
             {
-                if (Parameter.FileName1diff < diffMax)
+                textBoxExplore.AppendText(" 100.0%  " + Path.GetFileName(Parameter.CornerFiles[0]));
+            }
+            else if (Parameter.CornerFiles.Count > 0)
+            {
+                // Beräkna om vikten baserat på de kvarvarande filerna för att få exakt 100% totalt i listan
+                double finalWeightTot = Parameter.CornerDiffs.Sum(d => 1.0 / Math.Pow(d, 2));
+
+                for (int i = 0; i < Parameter.CornerFiles.Count; i++)
                 {
-                    textBox3.AppendText(Math.Round(100 * (1 / Math.Pow(Parameter.FileName1diff, 2)) / weightTot, 1).ToString("F1").PadLeft(6)
-                                                                                + "%  " + Path.GetFileName(Parameter.FileName1) + "\r\n");
-                }
-                if (Parameter.FileName2diff < diffMax)
-                {
-                    textBox3.AppendText(Math.Round(100 * (1 / Math.Pow(Parameter.FileName2diff, 2)) / weightTot, 1).ToString("F1").PadLeft(6)
-                                                                                + "%  " + Path.GetFileName(Parameter.FileName2) + "\r\n");
-                }
-                if (Parameter.FileName3diff < diffMax)
-                {
-                    textBox3.AppendText(Math.Round(100 * (1 / Math.Pow(Parameter.FileName3diff, 2)) / weightTot, 1).ToString("F1").PadLeft(6)
-                                                                                + "%  " + Path.GetFileName(Parameter.FileName3) + "\r\n");
-                }
-                if (Parameter.FileName4diff < diffMax)
-                {
-                    textBox3.AppendText(Math.Round(100 * (1 / Math.Pow(Parameter.FileName4diff, 2)) / weightTot, 1).ToString("F1").PadLeft(6)
-                                                                                + "%  " + Path.GetFileName(Parameter.FileName4));
+                    double pct = 100 * (1.0 / Math.Pow(Parameter.CornerDiffs[i], 2)) / finalWeightTot;
+                    textBoxExplore.AppendText(pct.ToString("F1").PadLeft(6) + "%  " + Path.GetFileName(Parameter.CornerFiles[i]) + "\r\n");
                 }
             }
         }
+        //public void getFilenames(int part1, int part2, int part3, int part4)
+        //{
+        //    Parameter.CornerFiles.Clear();
+        //    Parameter.CornerDiffs.Clear();
+
+        //    int diffMax = 10000;
+
+        //    int exactIdx = -1;
+        //    for (int i = 0; i < Parameter.Files.Length; i++)
+        //    {
+        //        var p = Parameter.FileParams[i];
+        //        if (p.Param1 == part1 && p.Param2 == part2 && p.Param3 == part3 && p.Param4 == part4)
+        //        {
+        //            exactIdx = i;
+        //            break;
+        //        }
+        //    }
+
+        //    if (exactIdx >= 0)
+        //    {
+        //        Parameter.CornerFiles.Add(Parameter.Files[exactIdx]);
+        //        Parameter.CornerDiffs.Add(0);
+        //    }
+        //    else
+        //    {
+        //        // Full 4D corner search: one "corner" per combination of
+        //        // above/below on each of the 4 axes (2^4 = 16 corners), each
+        //        // holding the closest file that satisfies that combination.
+        //        // This generalizes the old 2D quadrant search (4 corners) so
+        //        // Param3/Param4 get proper neighbours too, instead of being
+        //        // ignored or forcing an exact match.
+        //        const int cornerCount = 16;
+        //        string[] cornerFile = new string[cornerCount];
+        //        int[] cornerDiff = new int[cornerCount];
+        //        for (int c = 0; c < cornerCount; c++) { cornerDiff[c] = diffMax; }
+
+        //        for (int i = 0; i < Parameter.Files.Length; i++)
+        //        {
+        //            var p = Parameter.FileParams[i];
+        //            int diffPart = (int)Math.Abs(Math.Sqrt(
+        //                Math.Pow(part1 - p.Param1, 2) +
+        //                Math.Pow(part2 - p.Param2, 2) +
+        //                Math.Pow(part3 - p.Param3, 2) +
+        //                Math.Pow(part4 - p.Param4, 2)));
+
+        //            for (int c = 0; c < cornerCount; c++)
+        //            {
+        //                // Bit 0..3 of c selects, per axis, whether this corner wants
+        //                // a file at or below (0) or at or above (1) the requested value.
+        //                bool ok =
+        //                    ((c & 1) == 0 ? part1 >= p.Param1 : part1 <= p.Param1) &&
+        //                    ((c & 2) == 0 ? part2 >= p.Param2 : part2 <= p.Param2) &&
+        //                    ((c & 4) == 0 ? part3 >= p.Param3 : part3 <= p.Param3) &&
+        //                    ((c & 8) == 0 ? part4 >= p.Param4 : part4 <= p.Param4);
+
+        //                if (ok && diffPart < cornerDiff[c])
+        //                {
+        //                    cornerDiff[c] = diffPart;
+        //                    cornerFile[c] = Parameter.Files[i];
+        //                }
+        //            }
+        //        }
+
+        //        // The same file can be the closest match for several corners at
+        //        // once (especially when not all 4 parameters vary) - keep each
+        //        // distinct file only once so it isn't double-weighted.
+        //        var seen = new HashSet<string>();
+        //        for (int c = 0; c < cornerCount; c++)
+        //        {
+        //            if (cornerDiff[c] < diffMax && seen.Add(cornerFile[c]))
+        //            {
+        //                Parameter.CornerFiles.Add(cornerFile[c]);
+        //                Parameter.CornerDiffs.Add(cornerDiff[c]);
+        //            }
+        //        }
+        //    }
+
+        //    textBoxExplore.Clear();
+
+        //    if (Parameter.CornerFiles.Count == 1 && Parameter.CornerDiffs[0] == 0)
+        //    {
+        //        textBoxExplore.AppendText(" 100.0%  " + Path.GetFileName(Parameter.CornerFiles[0]));
+        //    }
+        //    else if (Parameter.CornerFiles.Count > 0)
+        //    {
+        //        double weightTot = Parameter.CornerDiffs.Sum(d => 1.0 / Math.Pow(d, 2));
+
+        //        for (int i = 0; i < Parameter.CornerFiles.Count; i++)
+        //        {
+        //            double pct = 100 * (1.0 / Math.Pow(Parameter.CornerDiffs[i], 2)) / weightTot;
+        //            textBoxExplore.AppendText(pct.ToString("F1").PadLeft(6) + "%  " + Path.GetFileName(Parameter.CornerFiles[i]) + "\r\n");
+        //        }
+        //    }
+        //}
         private void numericUpDown1_ValueChanged(object sender, EventArgs e)
         {
             if (Parameter.SetExpectedFile)
@@ -578,12 +665,11 @@ namespace S1P_Multiviewer
         {
             try
             {
-                Parameter.Min = int.Parse(textBox1.Text);
-                Parameter.Max = int.Parse(textBox7.Text);
-                Parameter.Diff = int.Parse(textBox8.Text);
-                Parameter.refImp = int.Parse(textBox9.Text);
-                Parameter.Param1Name = textBox5.Text;
-                Parameter.Param2Name = textBox6.Text;
+                Parameter.refImp = int.Parse(textBoxLoadImpedance.Text);
+                Parameter.Param1Name = textBoxLoadParamName1.Text;
+                Parameter.Param2Name = textBoxLoadParamName2.Text;
+                Parameter.Param3Name = textBoxLoadParamName3.Text;
+                Parameter.Param4Name = textBoxLoadParamName4.Text;
 
                 XMLfileHandler.SaveFile(Parameter.Path + "\\" + Parameter.Projectname + "_param.xml", listBox1.Items.Cast<object>(), true);
                 SetLabel();
@@ -619,24 +705,6 @@ namespace S1P_Multiviewer
                 SetExpectedFile();
                 PlotExploreChart();
                 Parameter.SetExpectedFile = true;
-            }
-
-        }
-        private void listBox2_SelectedIndexChanged(object sender, EventArgs e)
-        {
-            if (listBox2.SelectedItem != null)
-            {
-
-                string[] paramx = listBox2.SelectedItem.ToString().Split("_");
-                if (paramx.Length == 3)
-                {
-                    Parameter.SetExpectedFile = false;
-                    Parameter.Param1Value = int.Parse(paramx[1]);
-                    Parameter.Param2Value = int.Parse(paramx[2].Replace(".s1p", ""));
-                    SetExpectedFile();
-                    PlotExploreChart();
-                    Parameter.SetExpectedFile = true;
-                }
             }
 
         }
@@ -742,73 +810,13 @@ namespace S1P_Multiviewer
 
             for (int P1 = Parameter.Param1Min; P1 < Parameter.Param1Max; P1 += 1)
             {
-                int xMin = Parameter.Param2Min;
-                int xMax = Parameter.Param2Max;
-
-                if (P1 < Parameter.Min - Parameter.Diff)
-                {
-                    xMin = (Parameter.Min - Parameter.Diff) - P1;
-                }
-
-                if (xMax > (Parameter.Max - Parameter.Diff) - P1)
-                {
-                    xMax = (Parameter.Max - Parameter.Diff) - P1;
-                }
-
+                var (xMin, xMax) = Parameter.GetParamRange(2, P1, Parameter.Param2Value, Parameter.Param3Value, Parameter.Param4Value);
 
                 for (int P2 = xMin; P2 < xMax; P2 += 1)
                 {
 
-                    List<SParameter> sParams1 = new List<SParameter> { };
-                    List<SParameter> sParams2 = new List<SParameter> { };
-                    List<SParameter> sParams3 = new List<SParameter> { };
-                    List<SParameter> sParams4 = new List<SParameter> { };
-
-                    double weight1 = 0;
-                    double weight2 = 0;
-                    double weight3 = 0;
-                    double weight4 = 0;
-
-                    int fileStatus1 = 0;
-                    int fileStatus2 = 0;
-                    int fileStatus3 = 0;
-                    int fileStatus4 = 0;
-
-                    getFilenames(P1, P2);
-
-                    if (Parameter.FileName1diff == 0)
-                    {
-                        sParams1 = S1PReader.S1PFiles[Array.IndexOf(Parameter.Files, Parameter.FileName1)];
-                        weight1 = 1;
-                        fileStatus1 = 1;
-                    }
-                    else
-                    {
-                        if (Parameter.FileName1diff < 10000)
-                        {
-                            sParams1 = S1PReader.S1PFiles[Array.IndexOf(Parameter.Files, Parameter.FileName1)];
-                            weight1 = 1 / Math.Pow(Parameter.FileName1diff, 2);
-                            fileStatus1 = 1;
-                        }
-                        if (Parameter.FileName2diff < 10000 && Parameter.FileName1 != Parameter.FileName2)
-                        {
-                            sParams2 = S1PReader.S1PFiles[Array.IndexOf(Parameter.Files, Parameter.FileName2)];
-                            weight2 = 1 / Math.Pow(Parameter.FileName2diff, 2);
-                            fileStatus2 = 1;
-                        }
-                        if (Parameter.FileName3diff < 10000 && Parameter.FileName1 != Parameter.FileName3 && Parameter.FileName2 != Parameter.FileName3)
-                        {
-                            sParams3 = S1PReader.S1PFiles[Array.IndexOf(Parameter.Files, Parameter.FileName3)];
-                            weight3 = 1 / Math.Pow(Parameter.FileName3diff, 2);
-                            fileStatus3 = 1;
-                        }
-                        if (Parameter.FileName4diff < 10000 && Parameter.FileName1 != Parameter.FileName4 && Parameter.FileName2 != Parameter.FileName4 && Parameter.FileName3 != Parameter.FileName4)
-                        {
-                            sParams4 = S1PReader.S1PFiles[Array.IndexOf(Parameter.Files, Parameter.FileName4)];
-                            weight4 = 1 / Math.Pow(Parameter.FileName4diff, 2);
-                            fileStatus4 = 1;
-                        }
-                    }
+                    getFilenames(P1, P2, Parameter.Param3Value, Parameter.Param4Value);
+                    var weighted = S1PReader.GetWeightedSParams(loadMissingFromDisk: false);
 
                     double minVSWR = 100;
                     double avgVSWR = 0;
@@ -816,35 +824,9 @@ namespace S1P_Multiviewer
 
                     for (int i = 0; i < freqNo; i++)
                     {
-                        double avgTemp = 0;
-
-                        minVSWR = Math.Min(minVSWR, sParams1[freq[i]].VSWR);
-                        maxVSWR = Math.Max(maxVSWR, sParams1[freq[i]].VSWR);
-                        avgTemp = sParams1[freq[i]].VSWR * weight1;
-
-                        if (fileStatus2 > 0)
-                        {
-                            minVSWR = Math.Min(minVSWR, sParams2[freq[i]].VSWR);
-                            maxVSWR = Math.Max(maxVSWR, sParams2[freq[i]].VSWR);
-                            avgTemp += sParams2[freq[i]].VSWR * weight2;
-                        }
-
-                        if (fileStatus3 > 0)
-                        {
-                            minVSWR = Math.Min(minVSWR, sParams3[freq[i]].VSWR);
-                            maxVSWR = Math.Max(maxVSWR, sParams3[freq[i]].VSWR);
-                            avgTemp += sParams3[freq[i]].VSWR * weight3;
-                        }
-                        if (fileStatus4 > 0)
-                        {
-                            minVSWR = Math.Min(minVSWR, sParams4[freq[i]].VSWR);
-                            maxVSWR = Math.Max(maxVSWR, sParams4[freq[i]].VSWR);
-                            avgTemp += sParams4[freq[i]].VSWR * weight4;
-                        }
-
-                        avgVSWR += avgTemp / (weight1 * fileStatus1 + weight2 * fileStatus2 + weight3 * fileStatus3 + weight4 * fileStatus4);
-
-
+                        minVSWR = Math.Min(minVSWR, weighted.MinVSWR(freq[i]));
+                        maxVSWR = Math.Max(maxVSWR, weighted.MaxVSWR(freq[i]));
+                        avgVSWR += weighted.BlendVSWR(freq[i]);
                     }
 
                     avgVSWR = avgVSWR / freqNo;
@@ -899,6 +881,19 @@ namespace S1P_Multiviewer
                     if (S1PReader.S1PFiles[i] == null || S1PReader.S1PFiles[i].Count == 0)
                     {
                         S1PReader.S1PFiles[i] = S1PReader.ReadS1PFile(Parameter.Files[i]);
+
+                        // Kontrollera att filen matchar den första filens svep-inställningar
+                        if (i > 0 && Parameter.Points > 0)
+                        {
+                            if (S1PReader.S1PFiles[i].Count != Parameter.Points
+                                   || Math.Abs(S1PReader.S1PFiles[i][0].FrequencyHz - Parameter.MinFrequencyHz) > 0
+                                   || Math.Abs(S1PReader.S1PFiles[i][S1PReader.S1PFiles[i].Count - 1].FrequencyHz - Parameter.MaxFrequencyHz) > 0
+                                   )
+                            {
+                                MessageBox.Show($"File {Path.GetFileName(Parameter.Files[i])} has different sweep settings than {Path.GetFileName(Parameter.Files[0])}!", "Sync error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                break;
+                            }
+                        }
                     }
 
                     textBox12.AppendText("Load: " + Path.GetFileName(Parameter.Files[i]) + "\r\n");
@@ -914,6 +909,25 @@ namespace S1P_Multiviewer
                 if (S1PReader.S1PFiles[loadFileNo] == null || S1PReader.S1PFiles[loadFileNo].Count == 0)
                 {
                     S1PReader.S1PFiles[loadFileNo] = S1PReader.ReadS1PFile(Parameter.Files[loadFileNo]);
+
+                    // Kontrollera mot fil 0 även vid enstaka inläsning
+                    //if (loadFileNo != 0 && S1PReader.S1PFiles[0] != null && S1PReader.S1PFiles[0].Count > 0 && Parameter.Points > 0)
+                    //{
+                    //    if (S1PReader.S1PFiles[loadFileNo].Count != S1PReader.S1PFiles[0].Count
+                    //        || S1PReader.S1PFiles[loadFileNo].Count != Parameter.Points)
+                    //    {
+                    //        MessageBox.Show($"File {Path.GetFileName(filename)} is not compatible with project sweep settings!", "Sync error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    //    }
+                    //}
+                    if (loadFileNo != 0 && Parameter.Points > 0 && Parameter.MaxFrequencyHz > 0)
+                    {
+                        if (S1PReader.S1PFiles[loadFileNo].Count != Parameter.Points
+                           || Math.Abs(S1PReader.S1PFiles[loadFileNo][0].FrequencyHz - Parameter.MinFrequencyHz) > 0
+                           || Math.Abs(S1PReader.S1PFiles[loadFileNo][S1PReader.S1PFiles[loadFileNo].Count - 1].FrequencyHz - Parameter.MaxFrequencyHz) > 0)
+                        {
+                            MessageBox.Show($"File {Path.GetFileName(filename)} is not compatible with project sweep settings!", "Sync error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        }
+                    }
                 }
 
                 if (S1PReader.S1PFiles[loadFileNo] == null || S1PReader.S1PFiles[loadFileNo].Count == 0)
@@ -1172,7 +1186,7 @@ namespace S1P_Multiviewer
 
 
             var bars1 = formsPlot2.Plot.Add.Bars(MHz, prCounts);
-           // bars1.LegendText = "Alpha";
+            // bars1.LegendText = "Alpha";
 
             formsPlot2.Plot.ShowLegend(Alignment.UpperLeft);
             formsPlot2.Plot.Axes.Margins(bottom: 0);
@@ -1222,97 +1236,19 @@ namespace S1P_Multiviewer
 
             for (int P1 = Parameter.Param1Min; P1 < Parameter.Param1Max; P1 += 1)
             {
-                int xMin = Parameter.Param2Min;
-                int xMax = Parameter.Param2Max;
-
-                if (P1 < Parameter.Min - Parameter.Diff)
-                {
-                    xMin = (Parameter.Min - Parameter.Diff) - P1;
-                }
-
-                if (P1 + xMax > Parameter.Max - Parameter.Diff)
-                {
-                    xMax = (Parameter.Max - Parameter.Diff) - P1;
-                }
-
+                var (xMin, xMax) = Parameter.GetParamRange(2, P1, Parameter.Param2Value, Parameter.Param3Value, Parameter.Param4Value);
 
                 for (int P2 = xMin; P2 < xMax; P2 += 1)
                 {
 
-                    List<SParameter> sParams1 = new List<SParameter> { };
-                    List<SParameter> sParams2 = new List<SParameter> { };
-                    List<SParameter> sParams3 = new List<SParameter> { };
-                    List<SParameter> sParams4 = new List<SParameter> { };
-
-                    double weight1 = 0;
-                    double weight2 = 0;
-                    double weight3 = 0;
-                    double weight4 = 0;
-
-                    int fileStatus1 = 0;
-                    int fileStatus2 = 0;
-                    int fileStatus3 = 0;
-                    int fileStatus4 = 0;
-
-                    getFilenames(P1, P2);
-
-                    if (Parameter.FileName1diff == 0)
-                    {
-                        sParams1 = S1PReader.S1PFiles[Array.IndexOf(Parameter.Files, Parameter.FileName1)];
-                        weight1 = 1;
-                        fileStatus1 = 1;
-                    }
-                    else
-                    {
-                        if (Parameter.FileName1diff < 10000)
-                        {
-                            sParams1 = S1PReader.S1PFiles[Array.IndexOf(Parameter.Files, Parameter.FileName1)];
-                            weight1 = 1 / Math.Pow(Parameter.FileName1diff, 2);
-                            fileStatus1 = 1;
-                        }
-                        if (Parameter.FileName2diff < 10000 && Parameter.FileName1 != Parameter.FileName2)
-                        {
-                            sParams2 = S1PReader.S1PFiles[Array.IndexOf(Parameter.Files, Parameter.FileName2)];
-                            weight2 = 1 / Math.Pow(Parameter.FileName2diff, 2);
-                            fileStatus2 = 1;
-                        }
-                        if (Parameter.FileName3diff < 10000 && Parameter.FileName1 != Parameter.FileName3 && Parameter.FileName2 != Parameter.FileName3)
-                        {
-                            sParams3 = S1PReader.S1PFiles[Array.IndexOf(Parameter.Files, Parameter.FileName3)];
-                            weight3 = 1 / Math.Pow(Parameter.FileName3diff, 2);
-                            fileStatus3 = 1;
-                        }
-                        if (Parameter.FileName4diff < 10000 && Parameter.FileName1 != Parameter.FileName4 && Parameter.FileName2 != Parameter.FileName4 && Parameter.FileName3 != Parameter.FileName4)
-                        {
-                            sParams4 = S1PReader.S1PFiles[Array.IndexOf(Parameter.Files, Parameter.FileName4)];
-                            weight4 = 1 / Math.Pow(Parameter.FileName4diff, 2);
-                            fileStatus4 = 1;
-                        }
-                    }
+                    getFilenames(P1, P2, Parameter.Param3Value, Parameter.Param4Value);
+                    var weighted = S1PReader.GetWeightedSParams(loadMissingFromDisk: false);
 
                     int countVSWR = 0;
 
                     for (int i = 0; i < Parameter.CenterFrequencyMapValues.Count; i++)
                     {
-                        double avgTemp = 0;
-
-                        avgTemp = sParams1[Parameter.CenterFrequencyMapValues[i].FileRowNo].VSWR * weight1;
-
-                        if (fileStatus2 > 0)
-                        {
-                            avgTemp += sParams2[Parameter.CenterFrequencyMapValues[i].FileRowNo].VSWR * weight2;
-                        }
-
-                        if (fileStatus3 > 0)
-                        {
-                            avgTemp += sParams3[Parameter.CenterFrequencyMapValues[i].FileRowNo].VSWR * weight3;
-                        }
-                        if (fileStatus4 > 0)
-                        {
-                            avgTemp += sParams4[Parameter.CenterFrequencyMapValues[i].FileRowNo].VSWR * weight4;
-                        }
-
-                        avgTemp = avgTemp / (weight1 * fileStatus1 + weight2 * fileStatus2 + weight3 * fileStatus3 + weight4 * fileStatus4);
+                        double avgTemp = weighted.BlendVSWR(Parameter.CenterFrequencyMapValues[i].FileRowNo);
 
                         if (avgTemp <= 1.2) { Parameter.CenterFrequencyMapValues[i].VSWR12 += 1; }
                         if (avgTemp <= 1.3) { Parameter.CenterFrequencyMapValues[i].VSWR13 += 1; }
@@ -1349,11 +1285,11 @@ namespace S1P_Multiviewer
         {
             PlotExploreChart();
         }
-        private void numericUpDown5_ValueChanged(object sender, EventArgs e)
+        private void numericUpDownExploreParam1_ValueChanged(object sender, EventArgs e)
         {
             if (Parameter.SetExpectedFile)
             {
-                int newValue = (int)numericUpDown5.Value;
+                int newValue = (int)numericUpDownExploreParam1.Value;
                 if (newValue > Parameter.Param1Max)
                 {
                     newValue = Parameter.Param1Max;
@@ -1371,11 +1307,11 @@ namespace S1P_Multiviewer
                 listBox1.ClearSelected();
             }
         }
-        private void numericUpDown6_ValueChanged(object sender, EventArgs e)
+        private void numericUpDownExploreParam2_ValueChanged(object sender, EventArgs e)
         {
             if (Parameter.SetExpectedFile)
             {
-                int newValue = (int)numericUpDown6.Value;
+                int newValue = (int)numericUpDownExploreParam2.Value;
                 if (newValue > Parameter.Param2Max)
                 {
                     newValue = Parameter.Param2Max;
@@ -1385,6 +1321,50 @@ namespace S1P_Multiviewer
                     newValue = Parameter.Param2Min;
                 }
                 Parameter.Param2Value = newValue;
+                Parameter.SetExpectedFile = false;
+                SetExpectedFile();
+                PlotExploreChart();
+                Parameter.SetExpectedFile = true;
+                listBox1.ClearSelected();
+            }
+
+        }
+        private void numericUpDownExploreParam3_ValueChanged(object sender, EventArgs e)
+        {
+            if (Parameter.SetExpectedFile)
+            {
+                int newValue = (int)numericUpDownExploreParam3.Value;
+                if (newValue > Parameter.Param3Max)
+                {
+                    newValue = Parameter.Param3Max;
+                }
+                if (newValue < Parameter.Param3Min)
+                {
+                    newValue = Parameter.Param3Min;
+                }
+                Parameter.Param3Value = newValue;
+                Parameter.SetExpectedFile = false;
+                SetExpectedFile();
+                PlotExploreChart();
+                Parameter.SetExpectedFile = true;
+                listBox1.ClearSelected();
+            }
+
+        }
+        private void numericUpDownExploreParam4_ValueChanged(object sender, EventArgs e)
+        {
+            if (Parameter.SetExpectedFile)
+            {
+                int newValue = (int)numericUpDownExploreParam4.Value;
+                if (newValue > Parameter.Param4Max)
+                {
+                    newValue = Parameter.Param4Max;
+                }
+                if (newValue < Parameter.Param4Min)
+                {
+                    newValue = Parameter.Param4Min;
+                }
+                Parameter.Param4Value = newValue;
                 Parameter.SetExpectedFile = false;
                 SetExpectedFile();
                 PlotExploreChart();
@@ -1422,103 +1402,21 @@ namespace S1P_Multiviewer
 
             for (int P1 = Parameter.Param1Min; P1 < Parameter.Param1Max; P1 += 1)
             {
-                int xMin = Parameter.Param2Min;
-                int xMax = Parameter.Param2Max;
-
-                if (P1 < Parameter.Min - Parameter.Diff)
-                {
-                    xMin = (Parameter.Min - Parameter.Diff) - P1;
-                }
-
-                if (xMax > (Parameter.Max - Parameter.Diff) - P1)
-                {
-                    xMax = (Parameter.Max - Parameter.Diff) - P1;
-                }
+                var (xMin, xMax) = Parameter.GetParamRange(2, P1, Parameter.Param2Value, Parameter.Param3Value, Parameter.Param4Value);
 
 
                 for (int P2 = xMin + 1; P2 < xMax; P2 += 1)
                 {
-                    if (P1 == 420 && P2 == 20)
-                    {
-                        int a = 1;
-                    }
-
-                    List<SParameter> sParams1 = new List<SParameter> { };
-                    List<SParameter> sParams2 = new List<SParameter> { };
-                    List<SParameter> sParams3 = new List<SParameter> { };
-                    List<SParameter> sParams4 = new List<SParameter> { };
-
-                    double weight1 = 0;
-                    double weight2 = 0;
-                    double weight3 = 0;
-                    double weight4 = 0;
-
-                    int fileStatus1 = 0;
-                    int fileStatus2 = 0;
-                    int fileStatus3 = 0;
-                    int fileStatus4 = 0;
-
-                    getFilenames(P1, P2);
-
-                    if (Parameter.FileName1diff == 0)
-                    {
-                        sParams1 = S1PReader.S1PFiles[Array.IndexOf(Parameter.Files, Parameter.FileName1)];
-                        weight1 = 1;
-                        fileStatus1 = 1;
-                    }
-                    else
-                    {
-                        if (Parameter.FileName1diff < 10000)
-                        {
-                            sParams1 = S1PReader.S1PFiles[Array.IndexOf(Parameter.Files, Parameter.FileName1)];
-                            weight1 = 1 / Math.Pow(Parameter.FileName1diff, 2);
-                            fileStatus1 = 1;
-                        }
-                        if (Parameter.FileName2diff < 10000 && Parameter.FileName1 != Parameter.FileName2)
-                        {
-                            sParams2 = S1PReader.S1PFiles[Array.IndexOf(Parameter.Files, Parameter.FileName2)];
-                            weight2 = 1 / Math.Pow(Parameter.FileName2diff, 2);
-                            fileStatus2 = 1;
-                        }
-                        if (Parameter.FileName3diff < 10000 && Parameter.FileName1 != Parameter.FileName3 && Parameter.FileName2 != Parameter.FileName3)
-                        {
-                            sParams3 = S1PReader.S1PFiles[Array.IndexOf(Parameter.Files, Parameter.FileName3)];
-                            weight3 = 1 / Math.Pow(Parameter.FileName3diff, 2);
-                            fileStatus3 = 1;
-                        }
-                        if (Parameter.FileName4diff < 10000 && Parameter.FileName1 != Parameter.FileName4 && Parameter.FileName2 != Parameter.FileName4 && Parameter.FileName3 != Parameter.FileName4)
-                        {
-                            sParams4 = S1PReader.S1PFiles[Array.IndexOf(Parameter.Files, Parameter.FileName4)];
-                            weight4 = 1 / Math.Pow(Parameter.FileName4diff, 2);
-                            fileStatus4 = 1;
-                        }
-                    }
+                    getFilenames(P1, P2, Parameter.Param3Value, Parameter.Param4Value);
+                    var weighted = S1PReader.GetWeightedSParams(loadMissingFromDisk: false);
 
                     bool avgBool = false;
                     int avgNo = 0;
-                    int[] avgCount = new int[sParams1.Count + 1];
+                    int[] avgCount = new int[weighted.PointCount + 1];
 
-                    for (int i = 0; i < sParams1.Count; i++)
+                    for (int i = 0; i < weighted.PointCount; i++)
                     {
-                        double avgTemp = 0;
-
-                        avgTemp = sParams1[i].VSWR * weight1;
-
-                        if (fileStatus2 > 0)
-                        {
-                            avgTemp += sParams2[i].VSWR * weight2;
-                        }
-
-                        if (fileStatus3 > 0)
-                        {
-                            avgTemp += sParams3[i].VSWR * weight3;
-                        }
-                        if (fileStatus4 > 0)
-                        {
-                            avgTemp += sParams4[i].VSWR * weight4;
-                        }
-
-                        avgTemp = avgTemp / (weight1 * fileStatus1 + weight2 * fileStatus2 + weight3 * fileStatus3 + weight4 * fileStatus4);
+                        double avgTemp = weighted.BlendVSWR(i);
 
                         if (!avgBool && avgTemp <= inVSWR)
                         {
@@ -1579,18 +1477,35 @@ namespace S1P_Multiviewer
 
             Parameter.SetExpectedFile = false;
 
-            if (comboBox1.SelectedItem == "Conductance_G") { numericUpDown9.Value = -0.1m; numericUpDown1.Value = 0.1m; }
-            else if (comboBox1.SelectedItem == "GammaMagnitude") { numericUpDown9.Value = 0; numericUpDown1.Value = 1; }
-            else if (comboBox1.SelectedItem == "ImpedanceMagnitude") { numericUpDown9.Value = 0; numericUpDown1.Value = 100; }
-            else if (comboBox1.SelectedItem == "LinMag") { numericUpDown9.Value = 0; numericUpDown1.Value = 1; }
-            else if (comboBox1.SelectedItem == "LogMag") { numericUpDown9.Value = -30; numericUpDown1.Value = 0; }
-            else if (comboBox1.SelectedItem == "PhaseDegrees") { numericUpDown9.Value = -90; numericUpDown1.Value = 90; }
-            else if (comboBox1.SelectedItem == "PhaseRadians") { numericUpDown9.Value = -2; numericUpDown1.Value = 2; }
-            else if (comboBox1.SelectedItem == "Reactance_X") { numericUpDown9.Value = -20; numericUpDown1.Value = 20; }
-            else if (comboBox1.SelectedItem == "ReflectedPower") { numericUpDown9.Value = 0; numericUpDown1.Value = 1; }
-            else if (comboBox1.SelectedItem == "Resistance_R") { numericUpDown9.Value = 0; numericUpDown1.Value = 100; }
-            else if (comboBox1.SelectedItem == "ReturnLoss_RL") { numericUpDown9.Value = 1; numericUpDown1.Value = 50; }
-            else if (comboBox1.SelectedItem == "Susceptance_B") { numericUpDown9.Value = -0.1m; numericUpDown1.Value = 0.1m; }
+            if (comboBox1.SelectedItem == "Conductance_G S11") { numericUpDown9.Value = -0.1m; numericUpDown1.Value = 0.1m; }
+            else if (comboBox1.SelectedItem == "Magnitude S11") { numericUpDown9.Value = 0; numericUpDown1.Value = 1; }
+            else if (comboBox1.SelectedItem == "ImpedanceMagnitude S11") { numericUpDown9.Value = 0; numericUpDown1.Value = 100; }
+            else if (comboBox1.SelectedItem == "LinMag S11") { numericUpDown9.Value = 0; numericUpDown1.Value = 1; }
+            else if (comboBox1.SelectedItem == "Magnitude S21") { numericUpDown9.Value = 0; numericUpDown1.Value = 1; }
+            else if (comboBox1.SelectedItem == "Magnitude S11 + S21") { numericUpDown9.Value = 0; numericUpDown1.Value = 1; }
+            else if (comboBox1.SelectedItem == "LinMag S21") { numericUpDown9.Value = 0; numericUpDown1.Value = 1; }
+            else if (comboBox1.SelectedItem == "LinMag S11 + S21") { numericUpDown9.Value = 0; numericUpDown1.Value = 1; }
+            else if (comboBox1.SelectedItem == "LogMag S11") { numericUpDown9.Value = -60; numericUpDown1.Value = 0; }
+            else if (comboBox1.SelectedItem == "LogMag S21") { numericUpDown9.Value = -60; numericUpDown1.Value = 0; }
+            else if (comboBox1.SelectedItem == "LogMag S11 + S21") { numericUpDown9.Value = -60; numericUpDown1.Value = 0; }
+            else if (comboBox1.SelectedItem == "PhaseDegrees S11") { numericUpDown9.Value = -90; numericUpDown1.Value = 90; }
+            else if (comboBox1.SelectedItem == "PhaseDegrees S21") { numericUpDown9.Value = -90; numericUpDown1.Value = 90; }
+            else if (comboBox1.SelectedItem == "PhaseDegrees S11 + S21") { numericUpDown9.Value = -90; numericUpDown1.Value = 90; }
+            else if (comboBox1.SelectedItem == "PhaseRadians S11") { numericUpDown9.Value = -2; numericUpDown1.Value = 2; }
+            else if (comboBox1.SelectedItem == "PhaseRadians S21") { numericUpDown9.Value = -2; numericUpDown1.Value = 2; }
+            else if (comboBox1.SelectedItem == "PhaseRadians S11 + S21") { numericUpDown9.Value = -2; numericUpDown1.Value = 2; }
+            else if (comboBox1.SelectedItem == "Reactance_X S11") { numericUpDown9.Value = -20; numericUpDown1.Value = 20; }
+            else if (comboBox1.SelectedItem == "ReflectedPower S11") { numericUpDown9.Value = 0; numericUpDown1.Value = 1; }
+            else if (comboBox1.SelectedItem == "TransmittedPower S21") { numericUpDown9.Value = 0; numericUpDown1.Value = 1; }
+            else if (comboBox1.SelectedItem == "ReflectedPower S11 + TransmittedPower S21") { numericUpDown9.Value = 0; numericUpDown1.Value = 1; }
+            else if (comboBox1.SelectedItem == "Resistance_R S11") { numericUpDown9.Value = 0; numericUpDown1.Value = 100; }
+            else if (comboBox1.SelectedItem == "ReturnLoss_RL S11") { numericUpDown9.Value = 1; numericUpDown1.Value = 50; }
+            else if (comboBox1.SelectedItem == "InsertionLoss S21") { numericUpDown9.Value = 1; numericUpDown1.Value = 50; }
+            else if (comboBox1.SelectedItem == "ReturnLoss_RL S11 + InsertionLoss S21") { numericUpDown9.Value = 1; numericUpDown1.Value = 50; }
+            else if (comboBox1.SelectedItem == "Susceptance_B S11") { numericUpDown9.Value = -0.1m; numericUpDown1.Value = 0.1m; }
+            else if (comboBox1.SelectedItem == "VSWR S11") { numericUpDown9.Value = 1; numericUpDown1.Value = 10; }
+            else if (comboBox1.SelectedItem == "VSWR S21") { numericUpDown9.Value = 1; numericUpDown1.Value = 40; }
+            else if (comboBox1.SelectedItem == "VSWR S11 + S21") { numericUpDown9.Value = 1; numericUpDown1.Value = 40; }
             else { numericUpDown9.Value = 1; numericUpDown1.Value = 10; }
 
             PlotExploreChart();
@@ -1618,415 +1533,26 @@ namespace S1P_Multiviewer
                 PlotExploreChart();
             }
         }
-        private void trackBar1_Scroll(object sender, EventArgs e)
+        private bool AreFilesCompatible(List<SParameter> master, List<SParameter> current, string currentFileName, out string errorMessage)
         {
+            errorMessage = "";
+            if (master == null || current == null) return true;
 
-        }
-    }
-    public class HeatMap
-    {
-        public int Param1Value { get; set; } = 0;
-        public int Param2Value { get; set; } = 0;
-        public double Min { get; set; } = 0.0;
-        public double Avg { get; set; } = 0.0;
-        public double Max { get; set; } = 0.0;
-        //public int Count { get; set; } = 0;
-    }
-    public class CenterFrequencyMap
-    {
-        public double FrequencyHz { get; set; } = 0.0;
-        public int FileRowNo { get; set; } = 0;
-        public int VSWR12 { get; set; } = 0;
-        public int VSWR13 { get; set; } = 0;
-        public int VSWR14 { get; set; } = 0;
-        public int VSWR15 { get; set; } = 0;
-        public int VSWR16 { get; set; } = 0;
-        public int VSWR17 { get; set; } = 0;
-        public int VSWR18 { get; set; } = 0;
-        public int VSWR19 { get; set; } = 0;
-        public int VSWR20 { get; set; } = 0;
-        public int VSWR30 { get; set; } = 0;
-        public int VSWR40 { get; set; } = 0;
-        public int VSWR50 { get; set; } = 0;
-    }
-    public class BandwidthMap
-    {
-        public int Param1Value { get; set; } = 0;
-        public int Param2Value { get; set; } = 0;
-        public double Avg { get; set; } = 0.0;
-      //  public double Max { get; set; } = 0.0;
-    }
-    public class SParameter
-    {
-        public double FrequencyHz { get; set; } = 0.0;
-        public double Real { get; set; } = 0.0;
-        public double Imag { get; set; } = 0.0;
-        public double VSWR { get; set; } = 0.0;
-    }
-    public class S1PReader
-    {
-        public static List<SParameter>ReadS1PFile(string filePath)
-        {
-            var sParameters = new List<SParameter>();
-            if (File.Exists(filePath))
+            if (master.Count != current.Count)
             {
-           
-                var lines = File.ReadAllLines(filePath);
-                //var lines = await File.ReadAllLinesAsync(filePath);
-
-                //bool dataSectionStarted = false;
-                string freqUnit = "Hz";
-                //string format = "RI";
-
-                foreach (var rawLine in lines)
-                {
-                    string line = rawLine.Trim();
-
-                    // Skip empty lines or comments
-                    if (string.IsNullOrEmpty(line) || line.StartsWith("!"))
-                        continue;
-
-                    if (line.StartsWith("#"))
-                    {
-                        // Parse options line (e.g. "# MHz S RI R 50")
-                        var tokens = line.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                        for (int i = 0; i < tokens.Length; i++)
-                        {
-                            if (tokens[i].Equals("MHZ", StringComparison.OrdinalIgnoreCase))
-                                freqUnit = "MHz";
-                            else if (tokens[i].Equals("GHZ", StringComparison.OrdinalIgnoreCase))
-                                freqUnit = "GHz";
-                            else if (tokens[i].Equals("KHZ", StringComparison.OrdinalIgnoreCase))
-                                freqUnit = "kHz";
-                            else if (tokens[i].Equals("HZ", StringComparison.OrdinalIgnoreCase))
-                                freqUnit = "Hz";
-
-//                            if (tokens[i].Equals("RI", StringComparison.OrdinalIgnoreCase))
-//                                format = "RI";
-                        }
-                        continue;
-                    }
-
-                    // Read frequency and S-parameters
-                    var parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-                    if (parts.Length < 3)
-                        continue;
-
-                    //double freq = double.Parse(parts[0], CultureInfo.InvariantCulture);
-                    //double real = double.Parse(parts[1], CultureInfo.InvariantCulture);
-                    //double imag = double.Parse(parts[2], CultureInfo.InvariantCulture);
-
-                    double freq = double.Parse(parts[0], new CultureInfo("sv-SE"));
-                    double real = double.Parse(parts[1], new CultureInfo("sv-SE"));
-                    double imag = double.Parse(parts[2], new CultureInfo("sv-SE"));
-
-
-                    // Convert frequency to Hz
-                    switch (freqUnit.ToUpper())
-                    {
-                        case "GHZ": freq *= 1e9; break;
-                        case "MHZ": freq *= 1e6; break;
-                        case "KHZ": freq *= 1e3; break;
-                    }
-
-                    //Complex gamma = new Complex(real, imag);    // S11
-                    //Complex numerator = Complex.One + gamma;    // 1 + Γ
-                    //Complex denominator = Complex.One - gamma;  // 1 - Γ
-                    //Complex z = (numerator / denominator);      // the calculated load impedance
-
-
-
-
-                    sParameters.Add(new SParameter
-                    {
-                        FrequencyHz = freq,
-                        Real = real,
-                        Imag = imag,
-                        //Resistance = Converter.Resistance_R(real, imag),
-                        //Reactance = Converter.Reactance_X(real,imag),
-                        //Magnitude = Converter.GammaMagnitude(real,imag),
-                        VSWR = S11Converter.VSWR(real,imag)
-                    });
-                }
-                Parameter.Points = sParameters.Count();
-            }
-            else
-            {
-                for (int i = 1; i <= Parameter.Points; i++)
-                {
-                    sParameters.Add(new SParameter
-                    {
-                        FrequencyHz = 0,
-                        Real = 0,
-                        Imag = 0,
-                        //Resistance = 0,
-                        //Reactance = 0,
-                        //Magnitude = 0,
-                        VSWR = 0
-                    });
-                }
-            }
-                return sParameters;
-        
-        }
-        public static List<SParameter>[] S1PFiles = {};
-    }
-    public static class Parameter
-    {
-        public static string Projectname = "";
-        public static string Path = "";
-        public static string[] Files = {""};
-
-        public static int Points = 0;
-
-        public static string Param1Name = "Param1Name";
-        public static int Param1Min = 0;
-        public static int Param1Max = 100;
-        public static int Param1Value = 0;
-        public static string Param2Name = "Param2Name";
-        public static int Param2Min = 0;
-        public static int Param2Max = 100;
-        public static int Param2Value = 0;
-
-        public static int Diff = 0;
-        public static int Min = 0;
-        public static int Max = 200;
-        public static int refImp = 50;  // reference impedance reference impedance (typically 50 ohms)
-
-        public static double MinFrequencyHz = 0;
-        public static double MaxFrequencyHz = 0;
-
-        public static string FileName1 = "";
-        public static string FileName2 = "";
-        public static string FileName3 = "";
-        public static string FileName4 = "";
-
-        public static int FileName1diff = 10000;
-        public static int FileName2diff = 10000;
-        public static int FileName3diff = 10000;
-        public static int FileName4diff = 10000;
-
-        public static bool SetExpectedFile = true;
-        public static List<HeatMap> HeatMapValues = new List<HeatMap>();
-        public static List<CenterFrequencyMap> CenterFrequencyMapValues = new List<CenterFrequencyMap>();
-        public static List<BandwidthMap> BandwidthMapValues = new List<BandwidthMap>();
-    }
-    public class XMLfileHandler
-    {
-        public static void SaveFile(string filePath, IEnumerable<object> favorites = null, bool update = false)
-        {
-            if (update == false && File.Exists(filePath))
-            {
-                DialogResult result = MessageBox.Show(
-                           "Settingsfile already exists!\nDo you wish to overwrite?",
-                           "Warning!",
-                           MessageBoxButtons.YesNo,
-                           MessageBoxIcon.Warning
-                       );
-
-                if (result != DialogResult.Yes)
-                {
-                    return;
-                }
-            }
-            if (favorites == null)
-            {
-                var doc = new XDocument(
-                        new XElement("S1P",
-                            new XElement("Settings",
-                                new XElement("Projectname", Parameter.Projectname),
-                                new XAttribute("Diff", Parameter.Diff),
-                                new XAttribute("Min", Parameter.Min),
-                                new XAttribute("Max", Parameter.Max),
-                                new XAttribute("refImp", Parameter.refImp)
-                                ),
-                            new XElement("Param1",
-                                new XElement("Param1Name", Parameter.Param1Name)
-                                ),
-                            new XElement("Param2",
-                                new XElement("Param2Name", Parameter.Param2Name)
-                                )
-                            )
-                        );
-                doc.Save(filePath);
-            }
-            else
-            {
-                var doc = new XDocument(
-                        new XElement("S1P",
-                            new XElement("Settings",
-                                new XElement("Projectname", Parameter.Projectname),
-                                new XAttribute("Diff", Parameter.Diff),
-                                new XAttribute("Min", Parameter.Min),
-                                new XAttribute("Max", Parameter.Max),
-                                new XAttribute("refImp", Parameter.refImp)
-                                ),
-                            new XElement("Param1",
-                                new XElement("Param1Name", Parameter.Param1Name)
-                                ),
-                            new XElement("Param2",
-                                new XElement("Param2Name", Parameter.Param2Name)
-                                ),
-                                 new XElement("Favorites",
-                                        favorites.Select(favorite =>
-                                            new XElement("Favorite", favorite.ToString()))
-                                    )
-                            )
-                        );
-                doc.Save(filePath);
-            }
-        }
-
-        public static void ReadFile(string filePath, ListBox listBox)
-        {
-            if (File.Exists(filePath))
-            {
-                XDocument doc = XDocument.Load(filePath);
-
-                var XMLPart = doc.Descendants("S1P").Elements("Settings");
-                Parameter.Projectname = XMLPart.Elements("Projectname").Count() > 0 ? XMLPart.Elements("Projectname").First().Value.ToLower() : Parameter.Projectname;
-                Parameter.Diff = XMLPart.Attributes("Diff").Count() > 0 ? int.Parse(XMLPart.Attributes("Diff").First().Value) : Parameter.Diff;
-                Parameter.Min = XMLPart.Attributes("Min").Count() > 0 ? int.Parse(XMLPart.Attributes("Min").First().Value) : Parameter.Min;
-                Parameter.Max = XMLPart.Attributes("Max").Count() > 0 ? int.Parse(XMLPart.Attributes("Max").First().Value) : Parameter.Max;
-                Parameter.refImp = XMLPart.Attributes("refImp").Count() > 0 ? int.Parse(XMLPart.Attributes("refImp").First().Value) : Parameter.refImp;
-
-                XMLPart = doc.Descendants("S1P").Elements("Param1");
-                Parameter.Param1Name = XMLPart.Elements("Param1Name").Count() > 0 ? XMLPart.Elements("Param1Name").First().Value : Parameter.Param1Name;
-
-
-                XMLPart = doc.Descendants("S1P").Elements("Param2");
-                Parameter.Param2Name = XMLPart.Elements("Param2Name").Count() > 0 ? XMLPart.Elements("Param2Name").First().Value : Parameter.Param2Name;
-
-
-                XMLPart = doc.Descendants("S1P").Elements("Favorites");
-                listBox.Items.Clear();
-
-                foreach (var favorite in XMLPart.Elements("Favorite"))
-                {
-                    listBox.Items.Add(favorite.Value);
-                }
-            }
-            else
-            {
-                SaveFile(filePath);
+                errorMessage = $"Filen '{currentFileName}' har {current.Count} punkter, men huvudfilen har {master.Count}.";
+                return false;
             }
 
-        }
+            // Kontrollera första och sista frekvensen (räcker oftast för att se om svepet är likadant)
+            if (Math.Abs(master[0].FrequencyHz - current[0].FrequencyHz) > 1.0 ||
+                Math.Abs(master.Last().FrequencyHz - current.Last().FrequencyHz) > 1.0)
+            {
+                errorMessage = $"Filen '{currentFileName}' har ett annat frekvensområde ({current[0].FrequencyHz / 1e6:F1} - {current.Last().FrequencyHz / 1e6:F1} MHz).";
+                return false;
+            }
 
-    }
-    public class S11Converter 
-    {
-        public static Complex Impedance_Z_Complex(double real, double imag, double refImp)
-        {
-            Complex gamma = new Complex(real, imag);    // S11
-            Complex numerator = Complex.One + gamma;    // 1 + Γ
-            Complex denominator = Complex.One - gamma;  // 1 - Γ
-            Complex z = refImp * (numerator / denominator);      // the calculated load impedance
-
-            return z;
-        }
-        public static Complex Admittance_Y_Complex(double real, double imag, double refImp)
-        {
-            // Y = 1 / Z
-            Complex z = S11Converter.Impedance_Z_Complex(real, imag, refImp);
-
-            return Complex.Reciprocal(z); // Admittance  
-        }
-        public static Complex Gamma_Complex(double real, double imag)
-        {
-            // Reflection coefficient
-            Complex gamma = new Complex(real, imag);    // S11
-            return gamma;
-        }
-        public static double GammaMagnitude(double real, double imag)
-        {
-            // Reflection coefficient magnitude
-            Complex gamma = S11Converter.Gamma_Complex(real, imag);    // S11
-            return gamma.Magnitude;
-        }
-        public static double ImpedanceMagnitude(double real, double imag, double refImp = 50)
-        {
-            // Normalized impedance magnitude
-            Complex z = S11Converter.Impedance_Z_Complex(real, imag, refImp);
-            return z.Magnitude;
-        }
-        public static double VSWR(double real, double imag)
-        {
-            // Voltage Standing Wave Ratio
-            double Magnitude = S11Converter.GammaMagnitude(real, imag);
-            return (1 + Magnitude) / (1 - Magnitude);
-        }
-        public static double Resistance_R(double real, double imag, double refImp = 50)
-        {
-            // The resistive part in ohms
-            Complex z = S11Converter.Impedance_Z_Complex(real, imag, refImp);
-
-            return z.Real; // Resistance
-        }
-        public static double Reactance_X(double real, double imag, double refImp = 50)
-        {
-            // Represents inductive or capacitive behavior in ohms
-            Complex z = S11Converter.Impedance_Z_Complex(real, imag, refImp);
-
-            return z.Imaginary; // Reactance 
-        }
-        public static double Conductance_G(double real, double imag, double refImp = 50)
-        {
-            Complex y = S11Converter.Admittance_Y_Complex(real, imag, refImp);
-
-            return y.Real; // Conductance 
-        }
-        public static double Susceptance_B(double real, double imag, double refImp = 50)
-        {
-            Complex y = S11Converter.Admittance_Y_Complex(real, imag, refImp);
-
-            return y.Imaginary; // Susceptance 
-        }
-        public static double ReturnLoss_RL(double real, double imag)
-        {
-            //LogMag = Logarithmic Magnitude
-
-            double m = S11Converter.GammaMagnitude(real, imag);
-
-            return -20 * Math.Log10(m);
-        }
-        public static double LogMag(double real, double imag)
-        {
-            //LogMag = Logarithmic Magnitude
-
-            double m = S11Converter.GammaMagnitude(real, imag);
-
-            return 20 * Math.Log10(m);
-        }
-        public static double LinMag(double real, double imag)
-        {
-            //LogMag = Logarithmic Magnitude
-
-            double logmag = S11Converter.LogMag(real, imag);
-
-            return Math.Pow(10, logmag / 20);
-        }
-        public static double ReflectedPower(double real, double imag, double incidentPower = 1)
-        {
-            //LogMag = Logarithmic Magnitude
-
-            double m = S11Converter.GammaMagnitude(real, imag);
-
-            return Math.Pow(m, 2) * incidentPower;
-        }
-        public static double PhaseRadians(double real, double imag, double refImp = 50)
-        {
-            // phase angle in radians
-            Complex z = S11Converter.Impedance_Z_Complex(real, imag, refImp);
-
-            return z.Phase;
-        }
-        public static double PhaseDegrees(double real, double imag, double refImp = 50)
-        {
-            // phase angle in degrees
-            double pr = S11Converter.PhaseRadians(real, imag, refImp);
-
-            return pr * (180 / Math.PI); 
+            return true;
         }
     }
 }
