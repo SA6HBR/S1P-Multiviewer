@@ -22,18 +22,20 @@ project_L2 setting_L3 setting.s1p
 
 If you are measuring an antenna from Sirio named SD68, you can create files according to this template:  
 sd68_384_34.s1p  
+
+For filters, you save S2P files.  
+Zero to four parameters can be used.  
   
 ---
 
 ### LOAD:
 
 ![](https://github.com/SA6HBR/S1P-Multiviewer/blob/main/image/Load.png)  
-Select one of the .s1p files from the folder where you saved all the measurements.
+Select one of the .s1p or .s2p files from the folder where you saved all the measurements.
 All files in the folder should belong to the same project name.
 Depending on the number of files and your computer’s performance, this may take a moment.
 
-First time, enter the minimum and maximum values for both Parameter 1 and Parameter 2, as well as size of "tuning element" in Diff.
-I use L2 and L3 as name for Parameter 1 and Parameter 2.
+I use L2 and L3 as name for Parameter 1 and Parameter 2 for SD86-antenna.
 Click Save settings.
 
 ---
@@ -41,7 +43,7 @@ Click Save settings.
 ### EXPLORE:
 
 ![](https://github.com/SA6HBR/S1P-Multiviewer/blob/main/image/Explore.png)  
-Click directly on the filenames or adjust the sliders for Parameter 1 and Parameter 2 to view graphs generated from the values in the files or the averages between them.
+Click directly on the filenames or adjust the sliders for Parameters to view graphs generated from the values in the files or the averages between them.
 You can save the value as a favorite to easily return to an interesting setting.  
 Adjust chart min-max and frequencies min-max, to optimize the chart display.  
 Chart Type: Conductance, GammaMagnitude, ImpedanceMagnitude, LinMag, LogMag, PhaseDegrees, PhaseRadians, Reactance, ReflectedPower, Resistance, ReturnLoss, Susceptance and VSWR. 
@@ -50,6 +52,7 @@ Chart Type: Conductance, GammaMagnitude, ImpedanceMagnitude, LinMag, LogMag, Pha
 
 ### HEATMAP:
 
+For antenna measurement only (S11)  
 ![](https://github.com/SA6HBR/S1P-Multiviewer/blob/main/image/Heatmap.png)  
 Here you can see darker dots representing lower VSWR for the average/maximum of the selected frequencies.
 Enter the frequencies of interest (in MHz), separated by commas (,) and finish by clicking Load map.
@@ -59,6 +62,7 @@ Adjust the Max VSWR setting to improve the graph visualization.
 
 ### CENTER FREQUENCY:
 
+For antenna measurement only (S11)  
 ![](https://github.com/SA6HBR/S1P-Multiviewer/blob/main/image/CenterFrequency.png)  
 This graph displays the frequencies that most commonly exhibit the lowest VSWR across all values of Parameter 1 and Parameter 2.
 Click Load map.
@@ -68,6 +72,7 @@ Adjust Max VSWR to optimize the graph display.
 
 ### BANDWIDTH:  
 
+For antenna measurement only (S11)  
 ![](https://github.com/SA6HBR/S1P-Multiviewer/blob/main/image/Bandwith.png)  
 Select the maximum acceptable VSWR to determine the widest usable bandwidth and finish by clicking Load map.
 Adjust the percentage value to show only the results exceeding that threshold.
