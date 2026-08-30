@@ -82,7 +82,8 @@ Adjust the percentage value to show only the results exceeding that threshold.
 ## Useful Links
 
 * [Download latest S1P-Multiviewer](https://github.com/SA6HBR/S1P-Multiviewer/releases/download/2.0.2/S1P-Multiviewer.zip)
-* [My measurements for SD68](https://github.com/SA6HBR/Sirio-antenna-SD68-dipole)
+* [My measurements on some antennas](https://github.com/SA6HBR/AntennaMeasurements)
+* [My measurements on some filters](https://github.com/SA6HBR/AntennaFilterMeasurements)
 * [NanoVNA-App from DiSlord](https://github.com/DiSlord/NanoVNA-App/blob/main/Win32/Release/NanoVNA-App.exe)
 
 ---
@@ -90,7 +91,7 @@ Adjust the percentage value to show only the results exceeding that threshold.
 
 ## License
 
-GNU General Public License v3.0, see [LICENSE](https://github.com/SA6HBR/S1P-Multiviewer/blob/main/LICENSE) for details.
+GNU General Public License v3.0
 
 ### Third-party libraries
 
