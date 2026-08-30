@@ -117,11 +117,17 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="textBox1.Text" xml:space="preserve">
+    <value>Filter measurement:
+Set all to min, max and then center. Change one screw from min to max. 
+Count the number of turns of the adjustment screws and write the value of P1, P2 and P3. 
+Save for each measurement with the file name format: RX_ P1_P2_P3.s2p</value>
+  </data>
   <data name="textBox4.Text" xml:space="preserve">
-    <value>Create a matrix of the min and max values of L2 and L3. Mark every 20mm of L2 and every 10mm of L3.
-Set the antenna for these values and measure using, for example, the NanoVNA app.
-Save s1p files for each measurement with the filename format: project_L2 setting_L3 setting.s1p
-Example filename: sd68_384_34.s1p</value>
+    <value>Antenna measurement:
+Create a matrix between the min and max values ​​for both L2 and L3. 
+Set the antenna for all these values. The more measurements the better the result.
+Save for each measurement with the file name format: project_L2_L3.s1p</value>
   </data>
   <data name="textBox15.Text" xml:space="preserve">
     <value>Here you can see darker dots representing lower VSWR for the average/maximum of the selected frequencies.

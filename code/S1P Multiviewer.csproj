@@ -9,10 +9,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationIcon>Resources\sa6hbr_logo_64.ico</ApplicationIcon>
     <PackageIcon>sa6hbr_logo.png</PackageIcon>
-    <Version>2.0.1</Version>
+    <Version>2.0.2</Version>
     <Copyright>SA6HBR</Copyright>
-    <AssemblyVersion>26.08.20.1</AssemblyVersion>
-    <FileVersion>26.08.20.1</FileVersion>
+    <AssemblyVersion>26.08.30.1</AssemblyVersion>
+    <FileVersion>26.08.30.1</FileVersion>
 	<ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
 	<ForceDesignerDpiUnaware>true</ForceDesignerDpiUnaware>
   </PropertyGroup>

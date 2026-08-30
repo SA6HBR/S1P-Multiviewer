@@ -348,6 +348,7 @@ namespace S1P_Multiviewer
 
             textBoxLoadImpedance.Text = Parameter.refImp.ToString();
             textBoxLoadProjectname.Text = Parameter.Projectname;
+            textBoxLoadInfo.Text = Parameter.ProjectInfo;
 
             numericUpDown11.Minimum = (decimal)Math.Round(Parameter.MinFrequencyHz / 1000000, 0);
             numericUpDown11.Maximum = (decimal)Math.Round(Parameter.MaxFrequencyHz / 1000000, 0);
@@ -458,6 +459,7 @@ namespace S1P_Multiviewer
             PlotExploreChart();
             loadFiles(); // load all files
             MessageBox.Show($"In folder there is {Parameter.Files.Length} s1p/s2p-files");
+            Form1.ActiveForm.Text = Version.NameAndNumber + " - Projectname: " + Parameter.Projectname;
         }
         public void getFilenames(int part1, int part2, int part3, int part4)
         {
@@ -670,6 +672,7 @@ namespace S1P_Multiviewer
                 Parameter.Param2Name = textBoxLoadParamName2.Text;
                 Parameter.Param3Name = textBoxLoadParamName3.Text;
                 Parameter.Param4Name = textBoxLoadParamName4.Text;
+                Parameter.ProjectInfo = textBoxLoadInfo.Text;
 
                 XMLfileHandler.SaveFile(Parameter.Path + "\\" + Parameter.Projectname + "_param.xml", listBox1.Items.Cast<object>(), true);
                 SetLabel();
@@ -683,7 +686,20 @@ namespace S1P_Multiviewer
         }
         private void ButtonSaveFavorites_Click(object sender, EventArgs e)
         {
-            string newValue = Parameter.Param1Value.ToString() + "-" + Parameter.Param2Value.ToString();
+            string newValue = Parameter.Param1Value.ToString();
+            if (Parameter.ParamsNo >= 2)
+            {
+                newValue += "-" + Parameter.Param2Value.ToString();
+            }
+            if (Parameter.ParamsNo >= 3)
+            {
+                newValue += "-" + Parameter.Param3Value.ToString();
+            }
+            if (Parameter.ParamsNo >= 4)
+            {
+                newValue += "-" + Parameter.Param4Value.ToString();
+            }
+
             if (!listBox1.Items.Contains(newValue))
             {
                 listBox1.Items.Add(newValue);
@@ -695,11 +711,27 @@ namespace S1P_Multiviewer
             if (listBox1.SelectedItem != null)
             {
                 Parameter.SetExpectedFile = false;
+                Parameter.Param1Value = 0;
+                Parameter.Param2Value = 0;
+                Parameter.Param3Value = 0;
+                Parameter.Param4Value = 0;
+
                 string[] paramx = listBox1.SelectedItem.ToString().Split("-");
-                if (paramx.Length == 2)
+                if (paramx.Length >= 1)
                 {
                     Parameter.Param1Value = int.Parse(paramx[0]);
+                }
+                if (paramx.Length >= 2)
+                {
                     Parameter.Param2Value = int.Parse(paramx[1]);
+                }
+                if (paramx.Length >= 3)
+                {
+                    Parameter.Param3Value = int.Parse(paramx[2]);
+                }
+                if (paramx.Length >= 4)
+                {
+                    Parameter.Param4Value = int.Parse(paramx[3]);
                 }
                 loadFiles();
                 SetExpectedFile();

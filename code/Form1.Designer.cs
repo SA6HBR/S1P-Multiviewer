@@ -43,8 +43,13 @@
             label9 = new Label();
             tabControl1 = new TabControl();
             tabPage1 = new TabPage();
+            textBox1 = new TextBox();
+            pictureBox2 = new PictureBox();
+            pictureBox1 = new PictureBox();
             textBox4 = new TextBox();
             tabPage2 = new TabPage();
+            textBoxLoadInfo = new TextBox();
+            label1 = new Label();
             label28 = new Label();
             textBoxLoadParamName4 = new TextBox();
             textBoxLoadParamName3 = new TextBox();
@@ -124,6 +129,8 @@
             ((System.ComponentModel.ISupportInitialize)numericUpDown1).BeginInit();
             tabControl1.SuspendLayout();
             tabPage1.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)pictureBox2).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             tabPage2.SuspendLayout();
             tabPage3.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)numericUpDownExploreParam4).BeginInit();
@@ -227,7 +234,7 @@
             // 
             // textBoxLoadProjectname
             // 
-            textBoxLoadProjectname.Location = new Point(397, 25);
+            textBoxLoadProjectname.Location = new Point(375, 25);
             textBoxLoadProjectname.Name = "textBoxLoadProjectname";
             textBoxLoadProjectname.ReadOnly = true;
             textBoxLoadProjectname.Size = new Size(193, 22);
@@ -285,6 +292,9 @@
             // tabPage1
             // 
             tabPage1.BackColor = SystemColors.Control;
+            tabPage1.Controls.Add(textBox1);
+            tabPage1.Controls.Add(pictureBox2);
+            tabPage1.Controls.Add(pictureBox1);
             tabPage1.Controls.Add(textBox4);
             tabPage1.Location = new Point(4, 22);
             tabPage1.Name = "tabPage1";
@@ -293,21 +303,55 @@
             tabPage1.TabIndex = 0;
             tabPage1.Text = "Start";
             // 
+            // textBox1
+            // 
+            textBox1.BackColor = SystemColors.Control;
+            textBox1.BorderStyle = BorderStyle.None;
+            textBox1.Font = new Font("Times New Roman", 10.2F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            textBox1.Location = new Point(531, 95);
+            textBox1.Multiline = true;
+            textBox1.Name = "textBox1";
+            textBox1.Size = new Size(533, 72);
+            textBox1.TabIndex = 3;
+            textBox1.Text = resources.GetString("textBox1.Text");
+            // 
+            // pictureBox2
+            // 
+            pictureBox2.Image = Properties.Resources.filter;
+            pictureBox2.Location = new Point(531, 6);
+            pictureBox2.Name = "pictureBox2";
+            pictureBox2.Size = new Size(126, 83);
+            pictureBox2.SizeMode = PictureBoxSizeMode.Zoom;
+            pictureBox2.TabIndex = 2;
+            pictureBox2.TabStop = false;
+            // 
+            // pictureBox1
+            // 
+            pictureBox1.Image = Properties.Resources.antenna;
+            pictureBox1.Location = new Point(13, 6);
+            pictureBox1.Name = "pictureBox1";
+            pictureBox1.Size = new Size(402, 69);
+            pictureBox1.SizeMode = PictureBoxSizeMode.Zoom;
+            pictureBox1.TabIndex = 1;
+            pictureBox1.TabStop = false;
+            // 
             // textBox4
             // 
             textBox4.BackColor = SystemColors.Control;
             textBox4.BorderStyle = BorderStyle.None;
             textBox4.Font = new Font("Times New Roman", 10.2F, FontStyle.Regular, GraphicsUnit.Point, 0);
-            textBox4.Location = new Point(13, 15);
+            textBox4.Location = new Point(13, 95);
             textBox4.Multiline = true;
             textBox4.Name = "textBox4";
-            textBox4.Size = new Size(821, 177);
+            textBox4.Size = new Size(484, 69);
             textBox4.TabIndex = 0;
             textBox4.Text = resources.GetString("textBox4.Text");
             // 
             // tabPage2
             // 
             tabPage2.BackColor = SystemColors.Control;
+            tabPage2.Controls.Add(textBoxLoadInfo);
+            tabPage2.Controls.Add(label1);
             tabPage2.Controls.Add(label28);
             tabPage2.Controls.Add(textBoxLoadParamName4);
             tabPage2.Controls.Add(textBoxLoadParamName3);
@@ -334,9 +378,30 @@
             tabPage2.TabIndex = 1;
             tabPage2.Text = "Load";
             // 
+            // textBoxLoadInfo
+            // 
+            textBoxLoadInfo.AcceptsReturn = true;
+            textBoxLoadInfo.AcceptsTab = true;
+            textBoxLoadInfo.Location = new Point(375, 102);
+            textBoxLoadInfo.Multiline = true;
+            textBoxLoadInfo.Name = "textBoxLoadInfo";
+            textBoxLoadInfo.ScrollBars = ScrollBars.Vertical;
+            textBoxLoadInfo.Size = new Size(416, 58);
+            textBoxLoadInfo.TabIndex = 42;
+            textBoxLoadInfo.WordWrap = false;
+            // 
+            // label1
+            // 
+            label1.Location = new Point(323, 105);
+            label1.Name = "label1";
+            label1.Size = new Size(45, 15);
+            label1.TabIndex = 41;
+            label1.Text = "Info";
+            label1.TextAlign = ContentAlignment.MiddleRight;
+            // 
             // label28
             // 
-            label28.Location = new Point(345, 88);
+            label28.Location = new Point(323, 77);
             label28.Name = "label28";
             label28.Size = new Size(45, 15);
             label28.TabIndex = 40;
@@ -345,21 +410,21 @@
             // 
             // textBoxLoadParamName4
             // 
-            textBoxLoadParamName4.Location = new Point(698, 81);
+            textBoxLoadParamName4.Location = new Point(676, 74);
             textBoxLoadParamName4.Name = "textBoxLoadParamName4";
             textBoxLoadParamName4.Size = new Size(94, 22);
             textBoxLoadParamName4.TabIndex = 24;
             // 
             // textBoxLoadParamName3
             // 
-            textBoxLoadParamName3.Location = new Point(597, 81);
+            textBoxLoadParamName3.Location = new Point(575, 74);
             textBoxLoadParamName3.Name = "textBoxLoadParamName3";
             textBoxLoadParamName3.Size = new Size(94, 22);
             textBoxLoadParamName3.TabIndex = 23;
             // 
             // label14
             // 
-            label14.Location = new Point(597, 57);
+            label14.Location = new Point(575, 57);
             label14.Name = "label14";
             label14.Size = new Size(53, 18);
             label14.TabIndex = 36;
@@ -367,7 +432,7 @@
             // 
             // label27
             // 
-            label27.Location = new Point(698, 57);
+            label27.Location = new Point(676, 57);
             label27.Name = "label27";
             label27.Size = new Size(53, 18);
             label27.TabIndex = 37;
@@ -381,10 +446,10 @@
             textBox14.Location = new Point(25, 42);
             textBox14.Multiline = true;
             textBox14.Name = "textBox14";
-            textBox14.Size = new Size(246, 113);
+            textBox14.Size = new Size(240, 84);
             textBox14.TabIndex = 35;
             textBox14.TabStop = false;
-            textBox14.Text = "Select a file with name:\r\nName_Parameter1_Parameter2_Parameter3_Parameter4\r\nName is same for all files.\r\nParameter is optimal.\r\nParameter is number between 1 and 999.\r\n\r\n";
+            textBox14.Text = "Select a file with name:\r\nName_Parameter1_P..2_P..3_P..4\r\nName is same for all files.\r\nParameter is optimal.\r\nParameter is number between 1 and 999.\r\n\r\n";
             // 
             // button5
             // 
@@ -416,7 +481,7 @@
             // 
             // button1
             // 
-            button1.Location = new Point(802, 140);
+            button1.Location = new Point(802, 141);
             button1.Name = "button1";
             button1.Size = new Size(128, 23);
             button1.TabIndex = 26;
@@ -426,7 +491,7 @@
             // 
             // label12
             // 
-            label12.Location = new Point(596, 7);
+            label12.Location = new Point(574, 7);
             label12.Name = "label12";
             label12.Size = new Size(71, 15);
             label12.TabIndex = 30;
@@ -434,14 +499,14 @@
             // 
             // textBoxLoadImpedance
             // 
-            textBoxLoadImpedance.Location = new Point(596, 25);
+            textBoxLoadImpedance.Location = new Point(574, 25);
             textBoxLoadImpedance.Name = "textBoxLoadImpedance";
             textBoxLoadImpedance.Size = new Size(94, 22);
             textBoxLoadImpedance.TabIndex = 25;
             // 
             // label6
             // 
-            label6.Location = new Point(396, 7);
+            label6.Location = new Point(374, 7);
             label6.Name = "label6";
             label6.Size = new Size(71, 15);
             label6.TabIndex = 23;
@@ -449,21 +514,21 @@
             // 
             // textBoxLoadParamName2
             // 
-            textBoxLoadParamName2.Location = new Point(497, 81);
+            textBoxLoadParamName2.Location = new Point(475, 74);
             textBoxLoadParamName2.Name = "textBoxLoadParamName2";
             textBoxLoadParamName2.Size = new Size(94, 22);
             textBoxLoadParamName2.TabIndex = 22;
             // 
             // textBoxLoadParamName1
             // 
-            textBoxLoadParamName1.Location = new Point(396, 81);
+            textBoxLoadParamName1.Location = new Point(374, 74);
             textBoxLoadParamName1.Name = "textBoxLoadParamName1";
             textBoxLoadParamName1.Size = new Size(94, 22);
             textBoxLoadParamName1.TabIndex = 21;
             // 
             // label2
             // 
-            label2.Location = new Point(396, 57);
+            label2.Location = new Point(374, 57);
             label2.Name = "label2";
             label2.Size = new Size(53, 18);
             label2.TabIndex = 19;
@@ -471,7 +536,7 @@
             // 
             // label3
             // 
-            label3.Location = new Point(497, 57);
+            label3.Location = new Point(475, 57);
             label3.Name = "label3";
             label3.Size = new Size(53, 18);
             label3.TabIndex = 20;
@@ -1129,6 +1194,7 @@
             Controls.Add(formsPlot2);
             Controls.Add(formsPlot1);
             Icon = (Icon)resources.GetObject("$this.Icon");
+            MaximizeBox = false;
             Name = "Form1";
             Text = "Form1";
             ((System.ComponentModel.ISupportInitialize)trackBarExploreParam1).EndInit();
@@ -1137,6 +1203,8 @@
             tabControl1.ResumeLayout(false);
             tabPage1.ResumeLayout(false);
             tabPage1.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)pictureBox2).EndInit();
+            ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
             tabPage2.ResumeLayout(false);
             tabPage2.PerformLayout();
             tabPage3.ResumeLayout(false);
@@ -1256,5 +1324,10 @@
         private TrackBar trackBarExploreParam4;
         private Label labelExploreMaxParam4;
         private Label labelExploreParam4;
+        private TextBox textBoxLoadInfo;
+        private Label label1;
+        private PictureBox pictureBox1;
+        private TextBox textBox1;
+        private PictureBox pictureBox2;
     }
 }

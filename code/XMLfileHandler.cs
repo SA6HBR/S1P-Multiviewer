@@ -27,6 +27,8 @@ namespace S1P_Multiviewer
                         new XElement(xmlRoot,
                             new XElement("Settings",
                                 new XElement("Projectname", Parameter.Projectname),
+                                //new XElement("ProjectInfo", Parameter.ProjectInfo),
+                                new XElement("ProjectInfo", new XCData(Parameter.ProjectInfo ?? "")),
                                 new XAttribute("refImp", Parameter.refImp)
                                 ),
                             new XElement("Param1",
@@ -51,6 +53,8 @@ namespace S1P_Multiviewer
                         new XElement(xmlRoot,
                             new XElement("Settings",
                                 new XElement("Projectname", Parameter.Projectname),
+                                //new XElement("ProjectInfo", Parameter.ProjectInfo),
+                                new XElement("ProjectInfo", new XCData(Parameter.ProjectInfo ?? "")),
                                 new XAttribute("refImp", Parameter.refImp)
                                 ),
                             new XElement("Param1",
@@ -83,6 +87,7 @@ namespace S1P_Multiviewer
 
                 var XMLPart = doc.Descendants(xmlRoot).Elements("Settings");
                 Parameter.Projectname = XMLPart.Elements("Projectname").Count() > 0 ? XMLPart.Elements("Projectname").First().Value.ToLower() : Parameter.Projectname;
+                Parameter.ProjectInfo = XMLPart.Elements("ProjectInfo").Count() > 0 ? XMLPart.Elements("ProjectInfo").First().Value.Replace("\n", Environment.NewLine) : Parameter.ProjectInfo;
                 Parameter.refImp = XMLPart.Attributes("refImp").Count() > 0 ? int.Parse(XMLPart.Attributes("refImp").First().Value) : Parameter.refImp;
 
                 XMLPart = doc.Descendants(xmlRoot).Elements("Param1");

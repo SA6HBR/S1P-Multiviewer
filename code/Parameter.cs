@@ -9,6 +9,7 @@ namespace S1P_Multiviewer
     public static class Parameter
     {
         public static string Projectname = "";
+        public static string ProjectInfo = "";
         public static string Path = "";
         public static string[] Files = System.Array.Empty<string>();
 
@@ -17,6 +18,18 @@ namespace S1P_Multiviewer
         public static (int Param1, int Param2, int Param3, int Param4)[] FileParams = System.Array.Empty<(int, int, int, int)>();
 
         public static int Points = 0;
+
+        public static int ParamsNo
+        {
+            get
+            {
+                if (Param4Min != 0 || Param4Max != 0) return 4;
+                if (Param3Min != 0 || Param3Max != 0) return 3;
+                if (Param2Min != 0 || Param2Max != 0) return 2;
+                if (Param1Min != 0 || Param1Max != 0) return 1;
+                return 0;
+            }
+        }
 
         // Param 1
         public static string Param1Name = "P1";
